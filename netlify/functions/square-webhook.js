@@ -2,8 +2,6 @@ const https = require('https');
 const crypto = require('crypto');
 
 const SQUARE_WEBHOOK_SIGNATURE_KEY = 'g8cTyi6D3GKAc8E7v0yE7g';
-const SQUARE_ACCESS_TOKEN = 'EAAAlyv_zslUDGu4TXvvIx5L_6zSBhQaifNoknH_Sa0XKzaK2PwbNbRMXjZFhSAu';
-const SB_URL = 'https://suyyqepxyucygkpdrqzi.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1eXlxZXB4eXVjeWdrcGRycXppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNjMzNDMsImV4cCI6MjA5MDgzOTM0M30.DyFlELcgVNHarIV_Z0D_redurv4EMwl_w6H_Hog2vy8';
 
 function verifySig(body, sig, url) {
@@ -40,28 +38,6 @@ async function sbFetch(path, method, body) {
   });
 }
 
-async function getPaymentDetails(paymentId) {
-  return new Promise((resolve) => {
-    const options = {
-      hostname: 'connect.squareup.com',
-      path: `/v2/payments/${paymentId}`,
-      method: 'GET',
-      headers: {
-        'Square-Version': '2024-01-18',
-        'Authorization': `Bearer ${SQUARE_ACCESS_TOKEN}`,
-        'Content-Type': 'application/json'
-      }
-    };
-    const req = https.request(options, (res) => {
-      let d = '';
-      res.on('data', c => d += c);
-      res.on('end', () => { try { resolve(JSON.parse(d)); } catch(e) { resolve(null); } });
-    });
-    req.on('error', () => resolve(null));
-    req.end();
-  });
-}
-
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
@@ -72,90 +48,64 @@ exports.handler = async (event) => {
   const url = 'https://thelambplace.com/.netlify/functions/square-webhook';
 
   if (!verifySig(body, sig, url)) {
-    console.log('Invalid signature');
-    return { statusCode: 401, body: 'Unauthorized' };
+    console.log('Invalid signature — ignoring');
+    return { statusCode: 200, body: 'OK' };
   }
 
   let payload;
   try { payload = JSON.parse(body); } catch(e) {
-    return { statusCode: 400, body: 'Invalid body' };
+    return { statusCode: 200, body: 'OK' };
   }
 
-  const eventType = payload.type;
   const payment = payload.data && payload.data.object && payload.data.object.payment;
-
   if (!payment || payment.status !== 'COMPLETED') {
+    console.log('Not a completed payment — skipping');
     return { statusCode: 200, body: 'OK' };
   }
 
   const amountPaid = payment.amount_money ? (payment.amount_money.amount / 100) : 0;
   const paymentId = payment.id;
-  const note = payment.note || '';
 
   console.log(`✅ Payment COMPLETED: $${amountPaid} | ID: ${paymentId}`);
 
   try {
-    // Try to parse reservation data from note
-    let resData = null;
-    let lambUUID = null;
+    // Find most recent pending_payment reservation that matches the amount
+    const reservations = await sbFetch(
+      `reservations?status=eq.pending_payment&order=created_at.desc&limit=10`,
+      'GET'
+    );
 
-    try {
-      const parsed = JSON.parse(note);
-      resData = parsed;
-      lambUUID = parsed.lambUUID;
-    } catch(e) {
-      // Note is pipe-separated: lamb_id|lamb_name|customer_name|phone|email|pickup|payment_type|deposit|balance_due|total|lambUUID
-      const parts = note.split('|');
-      if(parts.length >= 10) {
-        resData = {
-          lamb_id: parts[0],
-          lamb_name: parts[1],
-          customer_name: parts[2],
-          phone: parts[3],
-          email: parts[4],
-          pickup: parts[5],
-          payment_type: parts[6],
-          deposit: parseFloat(parts[7]),
-          balance_due: parseFloat(parts[8]),
-          total: parseFloat(parts[9])
-        };
-        lambUUID = parts[10];
-      }
-    }
+    console.log(`Found ${reservations ? reservations.length : 0} pending reservations`);
 
-    if(resData) {
-      // Save reservation as paid
-      await sbFetch('reservations', 'POST', {
-        lamb_id: resData.lamb_id,
-        lamb_name: resData.lamb_name,
-        customer_name: resData.customer_name,
-        phone: resData.phone,
-        email: resData.email,
-        pickup: resData.pickup,
-        notes: resData.notes || '',
-        payment_type: resData.payment_type,
-        deposit: resData.deposit,
-        balance_due: resData.balance_due,
-        total: resData.total,
-        status: 'paid',
-        payment_id: paymentId
-      });
+    if (reservations && reservations.length > 0) {
+      // Match by deposit amount
+      const match = reservations.find(r =>
+        Math.abs(Number(r.deposit) - amountPaid) < 1
+      ) || reservations[0];
 
-      // Mark lamb as reserved using farm_id
-      await sbFetch(`lambs?farm_id=eq.${resData.lamb_id}`, 'PATCH', { available: false });
+      console.log(`Matched reservation: ${match.id} for lamb ${match.lamb_id}`);
 
-      // Also try by UUID if available
-      if(lambUUID && lambUUID !== 'undefined') {
-        await sbFetch(`lambs?id=eq.${lambUUID}`, 'PATCH', { available: false });
-      }
+      // Mark reservation as paid
+      await sbFetch(
+        `reservations?id=eq.${match.id}`,
+        'PATCH',
+        { status: 'paid', payment_id: paymentId }
+      );
 
-      console.log(`✅ Reservation saved and lamb ${resData.lamb_id} marked reserved`);
+      // Mark lamb as reserved
+      await sbFetch(
+        `lambs?farm_id=eq.${match.lamb_id}`,
+        'PATCH',
+        { available: false }
+      );
+
+      console.log(`✅ Done — Reservation ${match.id} paid, lamb ${match.lamb_id} reserved`);
     } else {
-      console.log('Could not parse reservation data from note:', note);
+      console.log('No pending reservations found to match payment');
     }
 
   } catch(e) {
-    console.error('Error processing payment:', e.message);
+    console.error('Error:', e.message);
   }
 
   return { statusCode: 200, body: 'OK' };
