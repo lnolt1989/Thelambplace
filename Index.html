@@ -399,19 +399,60 @@ input[readonly]{opacity:.65;cursor:not-allowed}
           <div class="fg full"><label>Special Notes</label><textarea id="fNotes" placeholder="Any special requirements..."></textarea></div>
         </div>
         <div class="fg" style="margin-bottom:16px"><label id="amountLabel">Amount Due Now</label><input type="text" id="fDeposit" readonly/></div>
-        <button class="btn-sub" id="submitBtn" onclick="submitRes()">🔒 Confirm Reservation</button>
-      </div>
-      <div class="success" id="mSuccess">
-        <div class="s-ico">✅</div>
-        <h3 class="s-ttl">Alhamdulillah! Reservation Confirmed</h3>
-        <p class="s-txt" id="successTxt"></p>
-      </div>
+
+```
+    <!-- DISCLAIMER -->
+    <div style="background:rgba(200,0,0,.08);border:1px solid rgba(200,0,0,.25);border-left:4px solid #c0392b;border-radius:0 3px 3px 0;padding:13px 16px;margin-bottom:14px">
+      <div style="font-size:.75rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#e07070;margin-bottom:6px">⚠️ Sales Policy — Please Read</div>
+      <p style="font-size:.8rem;color:rgba(245,228,188,.75);line-height:1.7">All sales are <strong style="color:#e07070">final</strong>. Deposits are <strong style="color:#e07070">non-refundable</strong>. No refunds will be issued under any circumstances once a reservation is confirmed and payment is made. By tapping Confirm Reservation you agree to these terms.</p>
     </div>
+
+    <!-- CHECKBOX AGREEMENT -->
+    <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px;cursor:pointer" onclick="toggleAgree()">
+      <div id="agreeBox" style="width:20px;height:20px;border:2px solid rgba(200,146,42,.5);border-radius:3px;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;transition:all .2s;background:transparent"></div>
+      <span style="font-size:.82rem;color:rgba(245,228,188,.7);line-height:1.6">I understand that all sales are final, deposits are non-refundable, and no refunds will be issued.</span>
+    </div>
+
+    <button class="btn-sub" id="submitBtn" onclick="submitRes()" disabled style="opacity:.5">🔒 Confirm Reservation</button>
+  </div>
+  <!-- SQUARE PAYMENT FORM -->
+  <div id="mPayment" style="display:none;padding:24px">
+    <div style="font-family:'Amiri',serif;font-size:1.45rem;color:var(--gold);margin-bottom:6px">Complete Your Payment</div>
+    <div style="font-size:.85rem;color:rgba(245,228,188,.7);margin-bottom:20px" id="payDesc"></div>
+    <div style="background:rgba(200,146,42,.12);border:2px solid var(--gold);border-radius:6px;padding:16px;text-align:center;margin-bottom:20px">
+      <div style="font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:4px">Amount Due Now</div>
+      <div style="font-family:'Amiri',serif;font-size:2.8rem;color:var(--cream);font-weight:700" id="payAmount"></div>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="color:var(--gold-light);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;display:block;margin-bottom:8px">Card Details</label>
+      <div id="sq-card" style="min-height:90px;background:rgba(255,255,255,.07);border-radius:3px;padding:4px"></div>
+    </div>
+    <div style="background:rgba(200,0,0,.08);border:1px solid rgba(200,0,0,.2);border-left:3px solid #c0392b;padding:11px 14px;border-radius:0 3px 3px 0;margin-bottom:14px">
+      <p style="font-size:.76rem;color:rgba(245,228,188,.65);line-height:1.65">⚠️ <strong style="color:#e07070">All sales final · Deposits non-refundable · No refunds issued.</strong> By completing payment you agree to these terms.</p>
+    </div>
+    <button id="payNowBtn" onclick="processSquarePayment()" style="width:100%;padding:16px;background:var(--gold);color:var(--forest);font-family:'DM Sans',sans-serif;font-weight:700;font-size:1rem;letter-spacing:.1em;text-transform:uppercase;border:none;border-radius:3px;cursor:pointer;transition:background .2s;margin-top:8px">
+      💳 Pay Now
+    </button>
+    <p style="font-size:.75rem;color:rgba(245,228,188,.45);text-align:center;margin-top:12px">🔒 Secured by Square · Accepts Visa, Mastercard, Amex, Apple Pay</p>
+    <button onclick="cancelPayment()" style="width:100%;padding:10px;background:transparent;border:1px solid rgba(200,146,42,.25);color:rgba(245,228,188,.5);font-family:'DM Sans',sans-serif;font-size:.82rem;border-radius:3px;cursor:pointer;margin-top:8px">
+      ← Go Back
+    </button>
+  </div>
+
+  <div class="success" id="mSuccess">
+    <div class="s-ico">✅</div>
+    <h3 class="s-ttl">Alhamdulillah! Reservation Confirmed</h3>
+    <p class="s-txt" id="successTxt"></p>
+  </div>
+</div>
+```
+
   </div>
 </div>
 
-<script>
-const SB_URL='https://suyyqepxyucygkpdrqzi.supabase.co';
+<script src="https://web.squarecdn.com/v1/square.js"></script>
+
+<script>'https://suyyqepxyucygkpdrqzi.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1eXlxZXB4eXVjeWdrcGRycXppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNjMzNDMsImV4cCI6MjA5MDgzOTM0M30.DyFlELcgVNHarIV_Z0D_redurv4EMwl_w6H_Hog2vy8';
 
 async function sb(table,method,body,query){
@@ -538,6 +579,13 @@ function openModal(id){
     <div class="mspec"><div class="msl">Status</div><div class="msv" style="color:${current.available?'#7fcc8a':'#cc7f7f'}">${current.available?'Available':'Reserved'}</div></div>`;
   document.getElementById('mForm').style.display=current.available?'block':'none';
   document.getElementById('mSuccess').classList.remove('show');
+  document.getElementById('mPayment').style.display='none';
+  // Reset agreement
+  agreed = false;
+  const box = document.getElementById('agreeBox');
+  if(box){ box.style.background='transparent'; box.style.borderColor='rgba(200,146,42,.5)'; box.innerHTML=''; }
+  const btn = document.getElementById('submitBtn');
+  if(btn){ btn.disabled=true; btn.style.opacity='.5'; }
   ['fName','fPhone','fEmail','fNotes'].forEach(f=>document.getElementById(f).value='');
   document.getElementById('fPickup').selectedIndex=0;
   document.getElementById('modal').classList.add('open');
@@ -547,17 +595,14 @@ function openModal(id){
 function closeModal(){
   document.getElementById('modal').classList.remove('open');
   document.getElementById('viewer').innerHTML='<div class="viewer-ph"><p>Loading...</p></div>';
+  document.getElementById('mPayment').style.display='none';
   document.body.style.overflow='';current=null;
+  squareCard=null;squarePayments=null;
 }
 document.getElementById('modal').addEventListener('click',function(e){if(e.target===this)closeModal()});
 
-const SQUARE_LINK = 'https://square.link/u/TKAZ1mS7';
-
-function squarePayUrl(amountDollars){
-  // Square short links don't support pre-filled amounts
-  // We display the exact amount clearly and open Square directly
-  return SQUARE_LINK;
-}
+const SQ_APP_ID = 'sq0idp-6G74EPAoOzHEK6DaP2PNcQ';
+const SQ_LOCATION_ID = '6C19N8VVZFCC5';
 
 async function submitRes(){
   if(!['fName','fPhone','fEmail','fPickup'].every(f=>document.getElementById(f).value.trim())){alert('Please fill in all required fields.');return;}
@@ -565,63 +610,171 @@ async function submitRes(){
   btn.disabled=true;btn.textContent='Saving...';
   const price=Number(current.price),dep=Math.round(price*.25),pif=paymentChoice==='full';
   const amountDue = pif ? price : dep;
-  const customerName = document.getElementById('fName').value;
-  const payDesc = pif
-    ? `Full payment — ${current.name} (${current.farm_id}) — The Lamb Place`
-    : `25% deposit — ${current.name} (${current.farm_id}) — The Lamb Place`;
-  const rec={lamb_id:current.farm_id,lamb_name:current.name,customer_name:customerName,phone:document.getElementById('fPhone').value,email:document.getElementById('fEmail').value,pickup:document.getElementById('fPickup').value,notes:document.getElementById('fNotes').value,payment_type:pif?'full':'deposit',deposit:amountDue,balance_due:pif?0:price-dep,total:price,status:'pending'};
-  try{
+  const pickupLabel = document.getElementById('fPickup').value==='eid1' ? 'Day 1 of Eid' : 'Day 2 of Eid';
+  const rec={
+    lamb_id:current.farm_id, lamb_name:current.name,
+    customer_name:document.getElementById('fName').value,
+    phone:document.getElementById('fPhone').value,
+    email:document.getElementById('fEmail').value,
+    pickup:document.getElementById('fPickup').value,
+    notes:document.getElementById('fNotes').value,
+    payment_type:pif?'full':'deposit',
+    deposit:amountDue,
+    balance_due:pif?0:price-dep,
+    total:price,
+    status:'pending_payment'
+  };
+
+  try {
+    // Save reservation as pending — lamb stays available until payment confirmed
     await sb('reservations','POST',rec);
-    await sb('lambs','PATCH',{available:false},`?id=eq.${current.id}`);
-    const idx=allLambs.findIndex(l=>l.id===current.id);
-    if(idx>-1)allLambs[idx].available=false;
-    renderGrid(currentFilter);
 
-    // Build Square payment URL
-    const payUrl = SQUARE_LINK;
-    const pickupLabel = rec.pickup==='eid1' ? 'Day 1 of Eid' : 'Day 2 of Eid';
-
-    document.getElementById('successTxt').innerHTML=pif
-      ?`Your lamb is reserved! Complete your payment to fully secure it.<br/><br/>
-        <div style="background:rgba(200,146,42,.15);border:2px solid var(--gold);border-radius:6px;padding:18px;margin:16px 0;text-align:center">
-          <div style="font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:6px">Amount to Enter in Square</div>
-          <div style="font-family:'Amiri',serif;font-size:2.5rem;color:var(--cream);font-weight:700">$${price}</div>
-          <div style="font-size:.82rem;color:rgba(245,228,188,.65);margin-top:4px">Full payment — ${current.name}</div>
-        </div>
-        <a href="${payUrl}" onclick="setTimeout(()=>{},100)" style="display:block;margin:8px 0 16px;padding:18px 32px;background:var(--gold);color:var(--forest);font-family:'DM Sans',sans-serif;font-weight:700;font-size:1.1rem;border-radius:4px;text-decoration:none;text-align:center">
-          💳 Tap Here to Pay via Square
-        </a>
-        <small style="opacity:.65;display:block;text-align:center">Accepts credit card, Apple Pay &amp; Google Pay</small><br/>
-        <small style="opacity:.65;display:block;text-align:center">📅 Pickup: ${pickupLabel}</small><br/>
-        Questions? Call <strong>(717) 449-6072</strong> · <a href="mailto:thelambplace@gmail.com" style="color:var(--gold-light)">thelambplace@gmail.com</a>`
-      :`Your lamb is reserved! Pay your 25% deposit to lock it in.<br/><br/>
-        <div style="background:rgba(200,146,42,.15);border:2px solid var(--gold);border-radius:6px;padding:18px;margin:16px 0;text-align:center">
-          <div style="font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:6px">Amount to Enter in Square</div>
-          <div style="font-family:'Amiri',serif;font-size:2.5rem;color:var(--cream);font-weight:700">$${dep}</div>
-          <div style="font-size:.82rem;color:rgba(245,228,188,.65);margin-top:4px">25% deposit — ${current.name}</div>
-        </div>
-        <a href="${payUrl}" onclick="setTimeout(()=>{},100)" style="display:block;margin:8px 0 16px;padding:18px 32px;background:var(--gold);color:var(--forest);font-family:'DM Sans',sans-serif;font-weight:700;font-size:1.1rem;border-radius:4px;text-decoration:none;text-align:center">
-          💳 Tap Here to Pay $${dep} Deposit via Square
-        </a>
-        <small style="opacity:.65;display:block;text-align:center">Accepts credit card, Apple Pay &amp; Google Pay</small><br/>
-        <small style="opacity:.65;display:block;text-align:center">Remaining $${price-dep} due on pickup day</small><br/>
-        <small style="opacity:.65;display:block;text-align:center">📅 Pickup: ${pickupLabel}</small><br/>
-        Questions? Call <strong>(717) 449-6072</strong> · <a href="mailto:thelambplace@gmail.com" style="color:var(--gold-light)">thelambplace@gmail.com</a>`;
-
+    // Show payment form
     document.getElementById('mForm').style.display='none';
-    document.getElementById('mSuccess').classList.add('show');
+    document.getElementById('mPayment').style.display='block';
+    document.getElementById('payAmount').textContent = `$${amountDue}`;
+    document.getElementById('payDesc').textContent = pif
+      ? `Full payment — ${current.name}`
+      : `25% deposit — ${current.name} · Balance $${price-dep} due on ${pickupLabel}`;
 
-    // Send confirmation email to farm
-    setTimeout(()=>{
-      const sub=encodeURIComponent(`New Reservation — ${rec.lamb_name} (${rec.lamb_id}) — ${rec.customer_name}`);
-      const line=pif?`Payment: PAID IN FULL ($${price})`:`Deposit Due: $${dep}\nBalance Due on Pickup: $${price-dep}`;
-      const pickupTxt = rec.pickup==='eid1'?'Day 1 of Eid':'Day 2 of Eid';
-      const body=encodeURIComponent(`NEW RESERVATION — THE LAMB PLACE\n=================================\nDate: ${new Date().toLocaleString()}\n\nLAMB: ${rec.lamb_name} (${rec.lamb_id})\nTotal: $${price}\n${line}\nPickup: ${pickupTxt}\n\nCUSTOMER\nName: ${rec.customer_name}\nPhone: ${rec.phone}\nEmail: ${rec.email}\nNotes: ${rec.notes||'None'}\n\n--\nThe Lamb Place · 1233 Mastersonville Rd, Manheim PA 17545\n(717) 449-6072 · thelambplace@gmail.com`);
-      window.location.href=`mailto:thelambplace@gmail.com?subject=${sub}&body=${body}`;
-    },3000);
-  }catch(e){
-    alert('Something went wrong saving your reservation. Please call (717) 449-6072 directly.');
+    // Store for payment processing
+    window._pendingRec = rec;
+    window._pendingLambId = current.id;
+    window._amountDue = amountDue;
+    window._pif = pif;
+    window._dep = dep;
+    window._price = price;
+    window._pickupLabel = pickupLabel;
+
+    // Initialize Square card
+    await initSquareCard();
+
+  } catch(e) {
+    alert('Something went wrong. Please call (717) 449-6072 directly.');
     btn.disabled=false;btn.textContent='🔒 Confirm Reservation';
+  }
+}
+
+let squareCard = null;
+let squarePayments = null;
+
+async function initSquareCard(){
+  try {
+    squarePayments = Square.payments(SQ_APP_ID, SQ_LOCATION_ID);
+    squareCard = await squarePayments.card({
+      style: {
+        '.input-container': { borderColor: '#c8922a', borderRadius: '3px' },
+        '.input-container.is-focus': { borderColor: '#e4b85a' },
+        input: { color: '#0e1a0f', fontFamily: 'DM Sans, sans-serif' },
+        'input::placeholder': { color: '#888' }
+      }
+    });
+    await squareCard.attach('#sq-card');
+  } catch(e) {
+    document.getElementById('sq-card').innerHTML = '<p style="color:#c0392b;font-size:.85rem">Card form failed to load. Please call (717) 449-6072 to reserve.</p>';
+  }
+}
+
+async function processSquarePayment(){
+  const payBtn = document.getElementById('payNowBtn');
+  payBtn.disabled = true;
+  payBtn.textContent = 'Processing...';
+
+  try {
+    const result = await squareCard.tokenize();
+    if (result.status !== 'OK') {
+      payBtn.disabled = false;
+      payBtn.textContent = `💳 Pay $${window._amountDue} Now`;
+      alert('Card error: ' + (result.errors ? result.errors[0].message : 'Please try again'));
+      return;
+    }
+
+    // Send to our Netlify function
+    const payRes = await fetch('/.netlify/functions/square-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourceId: result.token,
+        amountCents: window._amountDue * 100,
+        note: `The Lamb Place — ${window._pendingRec.lamb_name} (${window._pendingRec.lamb_id}) — ${window._pendingRec.customer_name}`,
+        customerId: window._pendingRec.email
+      })
+    });
+
+    const payData = await payRes.json();
+
+    if (payData.success) {
+      // Payment confirmed — now mark lamb reserved and update reservation
+      await sb('lambs','PATCH',{available:false},`?id=eq.${window._pendingLambId}`);
+      await sb('reservations','PATCH',{status:'paid',payment_id:payData.paymentId},
+        `?lamb_id=eq.${window._pendingRec.lamb_id}&status=eq.pending_payment`);
+
+      const idx = allLambs.findIndex(l=>l.id===window._pendingLambId);
+      if(idx>-1) allLambs[idx].available=false;
+      renderGrid(currentFilter);
+
+      // Show success
+      document.getElementById('mPayment').style.display='none';
+      document.getElementById('mSuccess').classList.add('show');
+      document.getElementById('successTxt').innerHTML = window._pif
+        ? `Your lamb is <strong>fully paid and reserved!</strong> Nothing owed on Eid day — just come and collect.<br/><br/>
+           <small style="opacity:.7">📅 Pickup: ${window._pickupLabel}</small><br/><br/>
+           Questions? Call <strong>(717) 449-6072</strong> · <a href="mailto:thelambplace@gmail.com" style="color:var(--gold-light)">thelambplace@gmail.com</a>`
+        : `Your lamb is reserved with a <strong>25% deposit paid!</strong> Remaining <strong>$${window._price - window._dep}</strong> due on pickup day.<br/><br/>
+           <small style="opacity:.7">📅 Pickup: ${window._pickupLabel}</small><br/><br/>
+           Questions? Call <strong>(717) 449-6072</strong> · <a href="mailto:thelambplace@gmail.com" style="color:var(--gold-light)">thelambplace@gmail.com</a>`;
+
+      // Send confirmation email
+      setTimeout(()=>{
+        const r = window._pendingRec;
+        const sub = encodeURIComponent(`✅ PAID — ${r.lamb_name} (${r.lamb_id}) — ${r.customer_name}`);
+        const line = window._pif ? `PAID IN FULL: $${window._price}` : `Deposit Paid: $${window._dep}\nBalance Due on Pickup: $${window._price-window._dep}`;
+        const body = encodeURIComponent(`PAID RESERVATION — THE LAMB PLACE\n==================================\nDate: ${new Date().toLocaleString()}\nPayment ID: ${payData.paymentId}\n\nLAMB: ${r.lamb_name} (${r.lamb_id})\nTotal: $${window._price}\n${line}\nPickup: ${window._pickupLabel}\n\nCUSTOMER\nName: ${r.customer_name}\nPhone: ${r.phone}\nEmail: ${r.email}\nNotes: ${r.notes||'None'}\n\n--\nThe Lamb Place · (717) 449-6072 · thelambplace@gmail.com`);
+        window.location.href = `mailto:thelambplace@gmail.com?subject=${sub}&body=${body}`;
+      }, 2000);
+
+    } else {
+      payBtn.disabled = false;
+      payBtn.textContent = `💳 Pay $${window._amountDue} Now`;
+      alert('Payment failed: ' + (payData.error || 'Please try again or call (717) 449-6072'));
+    }
+
+  } catch(e) {
+    payBtn.disabled = false;
+    payBtn.textContent = `💳 Pay $${window._amountDue} Now`;
+    alert('Payment error. Please call (717) 449-6072 to complete your reservation.');
+  }
+}
+
+let agreed = false;
+function toggleAgree(){
+  agreed = !agreed;
+  const box = document.getElementById('agreeBox');
+  const btn = document.getElementById('submitBtn');
+  if(agreed){
+    box.style.background = 'var(--gold)';
+    box.style.borderColor = 'var(--gold)';
+    box.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1c3a22" stroke-width="3"><polyline points="20,6 9,17 4,12"/></svg>';
+    btn.disabled = false;
+    btn.style.opacity = '1';
+  } else {
+    box.style.background = 'transparent';
+    box.style.borderColor = 'rgba(200,146,42,.5)';
+    box.innerHTML = '';
+    btn.disabled = true;
+    btn.style.opacity = '.5';
+  }
+}
+
+function cancelPayment(){
+  document.getElementById('mPayment').style.display='none';
+  document.getElementById('mForm').style.display='block';
+  const btn=document.getElementById('submitBtn');
+  btn.disabled=false;
+  btn.textContent=paymentChoice==='full'?`✅ Confirm & Pay in Full — $${Number(current.price)}`:'🔒 Confirm Reservation & Pay Deposit';
+  // Delete the pending reservation
+  if(window._pendingRec){
+    sb('reservations','DELETE',null,`?lamb_id=eq.${window._pendingRec.lamb_id}&status=eq.pending_payment`).catch(()=>{});
   }
 }
 
