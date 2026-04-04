@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -100,7 +101,496 @@ textarea{resize:vertical;min-height:70px}
 .empty{text-align:center;padding:60px 20px;color:#aaa}
 .empty-ico{font-size:3rem;margin-bottom:14px}
 .toast{position:fixed;bottom:24px;right:24px;z-index:999;background:var(--forest);color:var(--gold-pale);padding:14px 22px;border-radius:4px;font-size:.9rem;box-shadow:0 8px 28px rgba(0,0,0,.25);transform:translateY(80px);opacity:0;transition:transform .3s,opacity .3s;border-left:3px solid var(--gold);}
-< truncated lines 103-583 >
+.toast.show{transform:translateY(0);opacity:1}
+.loading{display:flex;align-items:center;justify-content:center;padding:40px;color:#aaa;gap:12px}
+.spinner{width:22px;height:22px;border:2px solid rgba(200,146,42,.3);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.confirm-ov{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .2s}
+.confirm-ov.open{opacity:1;pointer-events:all}
+.confirm-box{background:#fff;border-radius:6px;padding:28px;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.confirm-box h3{font-family:'Amiri',serif;font-size:1.3rem;color:var(--forest);margin-bottom:10px}
+.confirm-box p{font-size:.88rem;color:#666;line-height:1.6;margin-bottom:20px}
+.confirm-btns{display:flex;gap:10px;justify-content:flex-end}
+@media(max-width:768px){
+  .sidebar{position:fixed;left:0;top:0;height:100%;transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .menu-toggle{display:flex;align-items:center;justify-content:center}
+  .main{width:100%}
+  .stats-row{grid-template-columns:1fr 1fr}
+  .view{padding:16px}
+  .topbar{padding:0 16px}
+}
+</style>
+</head>
+<body>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sb-logo">
+    <h1>🐑 The Lamb Place</h1>
+    <p>Admin · Manheim, PA</p>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-item active" data-view="dashboard" onclick="nav(this)"><span class="ico">📊</span>Dashboard</div>
+    <div class="sb-item" data-view="lambs" onclick="nav(this)"><span class="ico">🐑</span>Manage Lambs<span class="sb-badge" id="lambCount">0</span></div>
+    <div class="sb-item" data-view="add" onclick="nav(this)"><span class="ico">➕</span>Add New Lamb</div>
+    <div class="sb-item" data-view="gallery" onclick="nav(this)"><span class="ico">🖼️</span>Photo Gallery</div>
+    <div class="sb-item" data-view="reservations" onclick="nav(this)"><span class="ico">📋</span>Reservations<span class="sb-badge" id="resCount">0</span></div>
+    <div class="sb-item" data-view="settings" onclick="nav(this)"><span class="ico">⚙️</span>Settings</div>
+  </nav>
+  <div class="sb-footer">
+    <div>(717) 449-6072</div>
+    <div>thelambplace@gmail.com</div>
+    <div>1233 Mastersonville Rd</div>
+    <div>Manheim, PA 17545</div>
+    <a href="index.html" target="_blank">↗ View Customer Site</a>
+  </div>
+</aside>
+
+<div class="main" id="main">
+  <div class="topbar">
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+    <div class="topbar-title" id="topbarTitle">Dashboard</div>
+    <div class="topbar-right">
+      <button class="tb-btn ghost" onclick="exportData()">⬇ Export</button>
+      <button class="tb-btn primary" onclick="navTo('add')">+ Add Lamb</button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+
+  <div class="view active" id="view-dashboard">
+    <div class="stats-row">
+      <div class="stat"><div class="stat-n">Total Lambs</div><div class="stat-v" id="s-total">—</div><div class="stat-s">Listed on site</div></div>
+      <div class="stat"><div class="stat-n">Available</div><div class="stat-v" id="s-avail" style="color:var(--green)">—</div><div class="stat-s">Ready to reserve</div></div>
+      <div class="stat"><div class="stat-n">Reserved</div><div class="stat-v" id="s-rsvd" style="color:var(--gold)">—</div><div class="stat-s">Deposits pending</div></div>
+      <div class="stat"><div class="stat-n">Est. Revenue</div><div class="stat-v" id="s-rev">—</div><div class="stat-s">All lambs sold</div></div>
+    </div>
+    <div class="sh"><h2>Recent Reservations</h2></div>
+    <div id="dash-res"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+    <div class="sh" style="margin-top:24px"><h2>Quick Actions</h2></div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <button class="tb-btn primary" style="font-size:.9rem;padding:13px 24px" onclick="navTo('add')">➕ Add New Lamb</button>
+      <button class="tb-btn ghost" style="font-size:.9rem;padding:13px 24px" onclick="navTo('reservations')">📋 View All Reservations</button>
+      <button class="tb-btn ghost" style="font-size:.9rem;padding:13px 24px" onclick="navTo('lambs')">🐑 Manage Lambs</button>
+    </div>
+  </div>
+
+  <!-- LAMBS LIST -->
+
+  <div class="view" id="view-lambs">
+    <div class="sh"><h2>All Lambs</h2><button class="tb-btn primary" onclick="navTo('add')">+ Add Lamb</button></div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Photo</th><th>ID</th><th>Name</th><th>Breed</th><th>Weight</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="lambsTbody"><tr><td colspan="8"><div class="loading"><div class="spinner"></div>Loading...</div></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ADD/EDIT LAMB -->
+
+  <div class="view" id="view-add">
+    <div class="sh"><h2 id="formTitle">Add New Lamb</h2></div>
+    <div class="form-card">
+      <input type="hidden" id="editId"/>
+      <div class="form-row">
+        <div class="fg"><label>Lamb Name / Number *</label><input type="text" id="fLambName" placeholder="e.g. Lamb #1001 or Al-Noor"/></div>
+        <div class="fg"><label>Farm ID *</label><input type="text" id="fLambId" placeholder="e.g. TLP-1001"/></div>
+      </div>
+      <div class="form-row">
+        <div class="fg"><label>Breed *</label>
+          <select id="fBreed">
+            <option value="">Select breed...</option>
+            <option>Dorper</option><option>Suffolk</option><option>Merino Cross</option>
+            <option>Romney</option><option>Corriedale</option><option>Rambouillet</option>
+            <option>Katahdin</option><option>Katahdin Dorper Cross</option><option>Hampshire</option><option>Other</option>
+          </select>
+        </div>
+        <div class="fg"><label>Weight (lbs) *</label><input type="number" id="fWeight" placeholder="e.g. 85" min="1"/></div>
+      </div>
+      <div class="form-row">
+        <div class="fg"><label>Age</label><input type="text" id="fAge" placeholder="e.g. 13 months"/></div>
+        <div class="fg"><label>Price ($) *</label><input type="number" id="fPrice" placeholder="e.g. 520" min="1" oninput="calcDeposit()"/></div>
+      </div>
+      <div class="form-row">
+        <div class="fg"><label>25% Deposit (auto)</label><input type="text" id="fDepCalc" readonly style="opacity:.65;cursor:not-allowed"/></div>
+        <div class="fg"><label>Status</label>
+          <select id="fStatus"><option value="true">Available</option><option value="false">Reserved</option></select>
+        </div>
+      </div>
+      <div class="form-row"><div class="fg full"><label>Description</label><textarea id="fDesc" placeholder="Health notes, temperament, Udhiyah eligibility..."></textarea></div></div>
+
+```
+  <div class="fg" style="margin-bottom:16px">
+    <label>Media Type</label>
+    <select id="fMediaType" onchange="toggleMediaInput()">
+      <option value="image">Photo (360° image)</option>
+      <option value="video">Video file</option>
+      <option value="youtube">YouTube / YouTube 360 URL</option>
+      <option value="url">Direct URL</option>
+    </select>
+  </div>
+  <div id="mediaUploadWrap" class="fg full" style="margin-bottom:16px">
+    <label>Upload Photo or Video</label>
+    <div class="upload-zone" id="dropZone">
+      <input type="file" id="fFile" accept="image/*,video/*" onchange="handleFile(this)"/>
+      <div class="upload-ico">📷</div>
+      <div class="upload-txt">Tap to upload 360° photo or video</div>
+      <div class="upload-sub">JPEG, PNG, MP4, MOV · Max 50MB · Supports 360° photos</div>
+    </div>
+    <img id="imgPreview" class="upload-preview" style="display:none" alt="preview"/>
+    <video id="vidPreview" class="upload-preview" style="display:none" controls></video>
+  </div>
+  <div id="mediaUrlWrap" class="fg full" style="display:none;margin-bottom:16px">
+    <label id="mediaUrlLabel">YouTube Video ID or URL</label>
+    <input type="text" id="fMediaUrl" placeholder="e.g. dQw4w9WgXcQ or full YouTube URL"/>
+    <small style="color:#888;font-size:.75rem;margin-top:4px;display:block">For YouTube 360: paste video ID or full URL</small>
+  </div>
+  <div class="form-actions">
+    <button class="btn-save" onclick="saveLamb()">💾 Save Lamb</button>
+    <button class="btn-cancel" onclick="navTo('lambs')">Cancel</button>
+    <button class="btn-danger" id="deleteBtn" style="display:none" onclick="confirmDeleteLamb()">🗑 Delete</button>
+  </div>
+</div>
+```
+
+  </div>
+
+  <!-- GALLERY -->
+
+  <div class="view" id="view-gallery">
+    <div class="sh"><h2>Photo Gallery</h2></div>
+    <p style="font-size:.88rem;color:#666;margin-bottom:24px;line-height:1.7">Upload photos and videos from your farm. These appear on the customer website gallery. Supports 360° photos from your camera.</p>
+    <div class="form-card" style="margin-bottom:28px">
+      <h3 style="font-family:'Amiri',serif;font-size:1.2rem;color:var(--forest);margin-bottom:16px">Upload New Photo or Video</h3>
+      <div class="upload-zone" id="galleryDropZone" style="margin-bottom:16px">
+        <input type="file" id="galleryFile" accept="image/*,video/*" multiple onchange="handleGalleryUpload(this)"/>
+        <div class="upload-ico">🖼️</div>
+        <div class="upload-txt">Tap to upload farm photos or video clips</div>
+        <div class="upload-sub">JPEG, PNG, HEIC, MP4, MOV · From camera roll or Files app</div>
+      </div>
+      <div class="fg" style="margin-bottom:14px"><label>Caption (optional)</label><input type="text" id="galleryCaption" placeholder="e.g. Eid day fun, pony rides for the kids..."/></div>
+      <button class="btn-save" onclick="saveGalleryPhoto()">💾 Add to Gallery</button>
+    </div>
+    <div class="sh"><h2>Gallery Photos &amp; Videos</h2><button class="tb-btn ghost" style="font-size:.78rem;color:var(--red);border-color:#e0c0c0" onclick="clearGallery()">Clear All</button></div>
+    <div id="galleryGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px"></div>
+  </div>
+
+  <!-- RESERVATIONS -->
+
+  <div class="view" id="view-reservations">
+    <div class="sh"><h2>All Reservations</h2><button class="tb-btn ghost" onclick="clearReservations()" style="font-size:.78rem;color:var(--red);border-color:#e0c0c0">Clear All</button></div>
+    <div id="resList"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+  </div>
+
+  <!-- SETTINGS -->
+
+  <div class="view" id="view-settings">
+    <div class="sh"><h2>Settings</h2></div>
+    <div class="form-card">
+      <div class="form-row">
+        <div class="fg full"><label>Farm Name</label><input type="text" id="setName" value="The Lamb Place"/></div>
+        <div class="fg"><label>Phone</label><input type="text" id="setPhone" value="(717) 449-6072"/></div>
+        <div class="fg"><label>Email</label><input type="text" id="setEmail" value="thelambplace@gmail.com"/></div>
+        <div class="fg full"><label>Address</label><input type="text" id="setAddr" value="1233 Mastersonville Rd, Manheim PA 17545"/></div>
+        <div class="fg"><label>Deposit % (default 25)</label><input type="number" id="setDeposit" value="25" min="1" max="100"/></div>
+      </div>
+      <div class="form-actions"><button class="btn-save" onclick="saveSettings()">💾 Save Settings</button></div>
+    </div>
+    <div style="margin-top:28px" class="form-card">
+      <h3 style="font-family:'Amiri',serif;color:var(--forest);font-size:1.2rem;margin-bottom:14px">Data Management</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="tb-btn ghost" onclick="exportData()" style="font-size:.85rem">⬇ Export Data (JSON)</button>
+        <button class="tb-btn ghost" onclick="document.getElementById('importFile').click()" style="font-size:.85rem">⬆ Import Data</button>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)"/>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="confirm-ov" id="confirmOv">
+  <div class="confirm-box">
+    <h3 id="confirmTitle">Are you sure?</h3>
+    <p id="confirmMsg">This action cannot be undone.</p>
+    <div class="confirm-btns">
+      <button class="btn-cancel" onclick="closeConfirm()">Cancel</button>
+      <button class="btn-danger" id="confirmOkBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const SB_URL='https://suyyqepxyucygkpdrqzi.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1eXlxZXB4eXVjeWdrcGRycXppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNjMzNDMsImV4cCI6MjA5MDgzOTM0M30.DyFlELcgVNHarIV_Z0D_redurv4EMwl_w6H_Hog2vy8';
+
+async function sb(table,method,body,query){
+  method=method||'GET';query=query||'';
+  const h={'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'};
+  if(method==='POST')h['Prefer']='return=representation';
+  if(method==='DELETE')h['Prefer']='return=minimal';
+  const res=await fetch(`${SB_URL}/rest/v1/${table}${query}`,{method,headers:h,body:body?JSON.stringify(body):null});
+  if(!res.ok){const e=await res.text();throw new Error(e);}
+  const txt=await res.text();return txt?JSON.parse(txt):null;
+}
+
+// ── NAV ──
+function nav(el){
+  document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
+  el.classList.add('active');
+  const v=el.dataset.view;
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  const titles={dashboard:'Dashboard',lambs:'Manage Lambs',add:'Add New Lamb',gallery:'Photo Gallery',reservations:'Reservations',settings:'Settings'};
+  document.getElementById('topbarTitle').textContent=titles[v]||v;
+  if(v==='dashboard')renderDash();
+  if(v==='lambs')renderLambsTable();
+  if(v==='reservations')renderReservations();
+  if(v==='add')resetForm();
+  if(v==='gallery')renderGalleryAdmin();
+  closeSidebar();
+}
+function navTo(v){const el=document.querySelector(`[data-view="${v}"]`);if(el)nav(el);}
+function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open')}
+function closeSidebar(){if(window.innerWidth<=768)document.getElementById('sidebar').classList.remove('open')}
+function toast(msg,dur){dur=dur||2800;const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur);}
+function closeConfirm(){document.getElementById('confirmOv').classList.remove('open')}
+function showConfirm(title,msg,onOk){
+  document.getElementById('confirmTitle').textContent=title;
+  document.getElementById('confirmMsg').textContent=msg;
+  document.getElementById('confirmOkBtn').onclick=()=>{onOk();closeConfirm();};
+  document.getElementById('confirmOv').classList.add('open');
+}
+
+// ── DASHBOARD ──
+async function renderDash(){
+  try{
+    const [lambs,res]=await Promise.all([
+      sb('lambs','GET',null,'?select=id,available,price'),
+      sb('reservations','GET',null,'?select=*&order=created_at.desc&limit=5')
+    ]);
+    const avail=lambs.filter(l=>l.available).length;
+    const rsvd=lambs.filter(l=>!l.available).length;
+    const rev=lambs.reduce((s,l)=>s+Number(l.price),0);
+    document.getElementById('s-total').textContent=lambs.length;
+    document.getElementById('s-avail').textContent=avail;
+    document.getElementById('s-rsvd').textContent=rsvd;
+    document.getElementById('s-rev').textContent='$'+rev.toLocaleString();
+    document.getElementById('lambCount').textContent=lambs.length;
+    document.getElementById('resCount').textContent=res.length;
+    const el=document.getElementById('dash-res');
+    if(!res.length){el.innerHTML='<div class="empty"><div class="empty-ico">📋</div><p>No reservations yet</p></div>';return;}
+    el.innerHTML=res.map(r=>`
+      <div class="res-card">
+        <div class="res-hdr"><div class="res-lamb">${r.lamb_name} <span style="font-size:.85rem;color:#888">(${r.lamb_id})</span></div><div class="res-date">${new Date(r.created_at).toLocaleDateString()}</div></div>
+        <div class="res-info">
+          <div class="ri"><div class="ri-l">Customer</div><div class="ri-v">${r.customer_name}</div></div>
+          <div class="ri"><div class="ri-l">Phone</div><div class="ri-v"><a href="tel:${r.phone.replace(/\D/g,'')}" style="color:var(--gold)">${r.phone}</a></div></div>
+          <div class="ri"><div class="ri-l">Payment</div><div class="ri-v" style="color:${r.payment_type==='full'?'#27ae60':'var(--gold)'}">${r.payment_type==='full'?'✅ Paid in Full':'💳 Deposit'}</div></div>
+          <div class="ri"><div class="ri-l">Paid</div><div class="ri-v">$${r.deposit}</div></div>
+        </div>
+      </div>`).join('');
+  }catch(e){document.getElementById('dash-res').innerHTML='<div class="empty"><p>Error loading data. Check your connection.</p></div>';}
+}
+
+// ── LAMBS TABLE ──
+async function renderLambsTable(){
+  const tbody=document.getElementById('lambsTbody');
+  tbody.innerHTML='<tr><td colspan="8"><div class="loading"><div class="spinner"></div>Loading...</div></td></tr>';
+  try{
+    const lambs=await sb('lambs','GET',null,'?select=*&order=farm_id.asc')||[];
+    document.getElementById('lambCount').textContent=lambs.length;
+    if(!lambs.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:40px;color:#aaa">No lambs yet. <a href="#" onclick="navTo(\'add\')" style="color:var(--gold)">Add your first lamb →</a></td></tr>';return;}
+    tbody.innerHTML=lambs.map(l=>`
+      <tr>
+        <td>${l.media_src&&l.media_type==='image'?`<img class="thumb" src="${l.media_src}" alt="${l.name}"/>`:`<div class="no-thumb">🐑</div>`}</td>
+        <td style="font-size:.8rem;color:var(--gold)">${l.farm_id}</td>
+        <td><strong>${l.name}</strong></td>
+        <td>${l.breed}</td>
+        <td>${l.weight} lbs</td>
+        <td>$${Number(l.price).toLocaleString()}</td>
+        <td><span class="pill-a ${l.available?'pill-ok':'pill-rsvd'}">${l.available?'Available':'Reserved'}</span></td>
+        <td><div class="act-btns">
+          <button class="act-btn edit" onclick="editLamb('${l.id}')">✏️ Edit</button>
+          <button class="act-btn toggle ${l.available?'mark-rsvd':''}" onclick="toggleAvail('${l.id}',${l.available})">${l.available?'Mark Reserved':'Mark Available'}</button>
+          <button class="act-btn del" onclick="confirmDelLamb('${l.id}','${l.name}')">🗑</button>
+        </div></td>
+      </tr>`).join('');
+  }catch(e){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:40px;color:red">Error loading lambs. Check your internet connection.</td></tr>';}
+}
+
+async function toggleAvail(id,current){
+  try{
+    await sb('lambs','PATCH',{available:!current},`?id=eq.${id}`);
+    toast(!current?'Marked as Available ✓':'Marked as Reserved ✓');
+    renderLambsTable();renderDash();
+  }catch(e){toast('⚠️ Error updating status');}
+}
+
+// ── ADD/EDIT FORM ──
+let uploadedDataUrl='';
+async function resetForm(){
+  document.getElementById('editId').value='';
+  document.getElementById('formTitle').textContent='Add New Lamb';
+  document.getElementById('deleteBtn').style.display='none';
+  ['fLambName','fAge','fDesc','fMediaUrl'].forEach(f=>document.getElementById(f).value='');
+  ['fWeight','fPrice'].forEach(f=>document.getElementById(f).value='');
+  document.getElementById('fBreed').selectedIndex=0;
+  document.getElementById('fStatus').selectedIndex=0;
+  document.getElementById('fMediaType').selectedIndex=0;
+  document.getElementById('fDepCalc').value='';
+  document.getElementById('imgPreview').style.display='none';
+  document.getElementById('vidPreview').style.display='none';
+  document.getElementById('fFile').value='';
+  uploadedDataUrl='';
+  try{
+    const lambs=await sb('lambs','GET',null,'?select=farm_id&order=farm_id.desc&limit=1');
+    let nextNum=1001;
+    if(lambs&&lambs.length){const last=lambs[0].farm_id;const n=parseInt(last.replace('TLP-',''));if(!isNaN(n))nextNum=n+1;}
+    document.getElementById('fLambId').value=`TLP-${nextNum}`;
+  }catch(e){document.getElementById('fLambId').value='TLP-1001';}
+  toggleMediaInput();
+}
+
+async function editLamb(id){
+  navTo('add');
+  try{
+    const [l]=await sb('lambs','GET',null,`?id=eq.${id}&select=*`);
+    document.getElementById('formTitle').textContent='Edit Lamb';
+    document.getElementById('editId').value=id;
+    document.getElementById('deleteBtn').style.display='inline-flex';
+    document.getElementById('fLambName').value=l.name;
+    document.getElementById('fLambId').value=l.farm_id;
+    document.getElementById('fBreed').value=l.breed;
+    document.getElementById('fWeight').value=l.weight;
+    document.getElementById('fAge').value=l.age||'';
+    document.getElementById('fPrice').value=l.price;
+    document.getElementById('fStatus').value=String(l.available);
+    document.getElementById('fDesc').value=l.description||'';
+    document.getElementById('fMediaType').value=l.media_type||'image';
+    document.getElementById('fDepCalc').value=`$${Math.round(l.price*.25)}`;
+    toggleMediaInput();
+    if(l.media_src){
+      if(l.media_type==='image'){document.getElementById('imgPreview').src=l.media_src;document.getElementById('imgPreview').style.display='block';}
+      else if(l.media_type==='video'){document.getElementById('vidPreview').src=l.media_src;document.getElementById('vidPreview').style.display='block';}
+      else{document.getElementById('fMediaUrl').value=l.media_src;}
+    }
+  }catch(e){toast('⚠️ Error loading lamb data');}
+}
+
+function calcDeposit(){const p=parseFloat(document.getElementById('fPrice').value)||0;document.getElementById('fDepCalc').value=p?`$${Math.round(p*.25)}`:''}
+
+function toggleMediaInput(){
+  const t=document.getElementById('fMediaType').value;
+  const isFile=t==='image'||t==='video';
+  document.getElementById('mediaUploadWrap').style.display=isFile?'block':'none';
+  document.getElementById('mediaUrlWrap').style.display=isFile?'none':'block';
+  if(!isFile)document.getElementById('mediaUrlLabel').textContent=t==='youtube'?'YouTube Video ID or URL':'Direct Media URL';
+  document.querySelector('#dropZone .upload-ico').textContent=t==='video'?'🎥':'📷';
+  document.querySelector('#dropZone .upload-txt').textContent=t==='video'?'Tap to upload 360° video':'Tap to upload 360° photo';
+  document.querySelector('#dropZone input').accept=t==='video'?'video/*':'image/*';
+}
+
+function handleFile(input){
+  const file=input.files[0];if(!file)return;
+  const type=document.getElementById('fMediaType').value;
+  if(file.size>52428800){toast('⚠️ File too large. Max 50MB.');return;}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    uploadedDataUrl=e.target.result;
+    if(type==='video'){document.getElementById('vidPreview').src=uploadedDataUrl;document.getElementById('vidPreview').style.display='block';document.getElementById('imgPreview').style.display='none';}
+    else{document.getElementById('imgPreview').src=uploadedDataUrl;document.getElementById('imgPreview').style.display='block';document.getElementById('vidPreview').style.display='none';}
+    toast('✓ Media loaded — save to upload');
+  };
+  reader.readAsDataURL(file);
+}
+
+// Drag & drop
+const dz=document.getElementById('dropZone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');const f=e.dataTransfer.files[0];if(f){document.getElementById('fFile').files=e.dataTransfer.files;handleFile(document.getElementById('fFile'));}});
+
+async function saveLamb(){
+  const name=document.getElementById('fLambName').value.trim();
+  const farmId=document.getElementById('fLambId').value.trim();
+  const breed=document.getElementById('fBreed').value;
+  const weight=parseFloat(document.getElementById('fWeight').value);
+  const price=parseFloat(document.getElementById('fPrice').value);
+  if(!name||!farmId||!breed||!weight||!price){toast('⚠️ Please fill all required fields');return;}
+  const mt=document.getElementById('fMediaType').value;
+  let ms='';
+  if(mt==='image'||mt==='video'){
+    ms=uploadedDataUrl||'';
+    if(!ms&&document.getElementById('imgPreview').style.display!=='none')ms=document.getElementById('imgPreview').src||'';
+    if(!ms&&document.getElementById('vidPreview').style.display!=='none')ms=document.getElementById('vidPreview').src||'';
+  }else{
+    ms=document.getElementById('fMediaUrl').value.trim();
+    if(mt==='youtube'&&ms.includes('youtube.com/watch')){try{const u=new URL(ms);ms=u.searchParams.get('v')||ms}catch{}}
+  }
+  const lamb={farm_id:farmId,name,breed,weight,age:document.getElementById('fAge').value.trim()||'12+ months',price,size:weight<=69?'sm':weight<=100?'md':'lg',available:document.getElementById('fStatus').value==='true',media_type:mt,media_src:ms||null,description:document.getElementById('fDesc').value.trim()||null};
+  const editId=document.getElementById('editId').value;
+  try{
+    if(editId)await sb('lambs','PATCH',lamb,`?id=eq.${editId}`);
+    else await sb('lambs','POST',lamb);
+    uploadedDataUrl='';
+    toast(editId?'✓ Lamb updated!':'✓ Lamb added!');
+    navTo('lambs');
+  }catch(e){toast('⚠️ Error saving lamb: '+e.message);}
+}
+
+function confirmDelLamb(id,name){
+  showConfirm(`Delete ${name}?`,'This will permanently remove this lamb from the site.',async()=>{
+    try{await sb('lambs','DELETE',null,`?id=eq.${id}`);toast('🗑 Lamb deleted');navTo('lambs');}
+    catch(e){toast('⚠️ Error deleting lamb');}
+  });
+}
+function confirmDeleteLamb(){
+  const id=document.getElementById('editId').value;
+  const name=document.getElementById('fLambName').value;
+  if(!id)return;
+  confirmDelLamb(id,name);
+}
+
+// ── GALLERY ──
+let pendingGalleryImg='',pendingGalleryType='image';
+
+function handleGalleryUpload(input){
+  const file=input.files[0];if(!file)return;
+  const isVideo=file.type.startsWith('video/');
+  if(file.size>104857600){toast('⚠️ File too large. Max 100MB for video.');return;}
+  pendingGalleryType=isVideo?'video':'image';
+  const reader=new FileReader();
+  reader.onload=e=>{
+    pendingGalleryImg=e.target.result;
+    document.querySelector('#galleryDropZone .upload-txt').textContent=isVideo?'✓ Video ready — click "Add to Gallery"':'✓ Photo ready — click "Add to Gallery"';
+    toast(isVideo?'✓ Video loaded':'✓ Photo loaded');
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveGalleryPhoto(){
+  if(!pendingGalleryImg){toast('⚠️ Please select a photo or video first');return;}
+  try{
+    await sb('gallery','POST',{src:pendingGalleryImg,media_type:pendingGalleryType,caption:document.getElementById('galleryCaption').value.trim()||null,sort_order:0});
+    pendingGalleryImg='';pendingGalleryType='image';
+    document.getElementById('galleryFile').value='';
+    document.getElementById('galleryCaption').value='';
+    document.querySelector('#galleryDropZone .upload-txt').textContent='Tap to upload farm photos or video clips';
+    toast('✓ Added to gallery!');
+    renderGalleryAdmin();
+  }catch(e){toast('⚠️ Error saving: '+e.message);}
+}
+
+async function renderGalleryAdmin(){
+  const el=document.getElementById('galleryGrid');
+  el.innerHTML='<div class="loading" style="grid-column:1/-1"><div class="spinner"></div>Loading...</div>';
+  try{
+    const gallery=await sb('gallery','GET',null,'?select=*&order=sort_order.asc,created_at.asc')||[];
+    if(!gallery.length){el.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="empty-ico">🖼️</div><p>No photos or videos yet.</p></div>';return;}
+    el.innerHTML=gallery.map((p,i)=>{
+      const media=p.media_type==='video'?`<video src="${p.src}" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block" controls playsinline muted></video>`:`<img src="${p.src}" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:block" alt=""/>`;
+      const badge=p.media_type==='video'?`<div style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.65);color:#fff;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;padding:3px 10px;border-radius:40px">▶ Video</div>`:'';
       return`<div style="position:relative;border-radius:4px;overflow:hidden;border:1px solid rgba(0,0,0,.08)">${media}${badge}${p.caption?`<div style="padding:8px 10px;font-size:.78rem;color:var(--mid);background:#fff">${p.caption}</div>`:''}<button onclick="deleteGalleryPhoto('${p.id}')" style="position:absolute;top:8px;right:8px;background:rgba(192,57,43,.85);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center">✕</button></div>`;
     }).join('');
   }catch(e){el.innerHTML='<div class="empty" style="grid-column:1/-1"><p>Error loading gallery.</p></div>';}
@@ -200,5 +690,6 @@ function importData(input){
 // Init
 renderDash();
 </script>
+
 </body>
 </html>
