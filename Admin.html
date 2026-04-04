@@ -206,21 +206,44 @@ textarea{resize:vertical;min-height:70px}
             <option>Katahdin</option><option>Katahdin Dorper Cross</option><option>Hampshire</option><option>Other</option>
           </select>
         </div>
-        <div class="fg"><label>Weight (lbs) *</label><input type="number" id="fWeight" placeholder="e.g. 85" min="1"/></div>
+        <div class="fg"><label>Weight (lbs) *</label><input type="number" id="fWeight" placeholder="e.g. 85" min="1" oninput="calcPriceFromLb()"/></div>
       </div>
       <div class="form-row">
         <div class="fg"><label>Age</label><input type="text" id="fAge" placeholder="e.g. 13 months"/></div>
         <div class="fg"><label>Price ($) *</label><input type="number" id="fPrice" placeholder="e.g. 520" min="1" oninput="calcDeposit()"/></div>
       </div>
-      <div class="form-row">
-        <div class="fg"><label>25% Deposit (auto)</label><input type="text" id="fDepCalc" readonly style="opacity:.65;cursor:not-allowed"/></div>
-        <div class="fg"><label>Status</label>
-          <select id="fStatus"><option value="true">Available</option><option value="false">Reserved</option></select>
-        </div>
-      </div>
-      <div class="form-row"><div class="fg full"><label>Description</label><textarea id="fDesc" placeholder="Health notes, temperament, Udhiyah eligibility..."></textarea></div></div>
 
 ```
+  <!-- PRICE PER LB CALCULATOR -->
+  <div style="background:rgba(200,146,42,.08);border:1px solid rgba(200,146,42,.25);border-radius:4px;padding:18px 20px;margin-bottom:16px">
+    <div style="font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:12px">⚖️ Price Per Lb Calculator</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:end">
+      <div class="fg">
+        <label>Price Per Lb ($)</label>
+        <input type="number" id="fPricePerLb" placeholder="e.g. 4.50" min="0" step="0.01" oninput="calcPriceFromLb()"/>
+      </div>
+      <div class="fg">
+        <label>Weight (lbs)</label>
+        <input type="text" id="fWeightDisplay" readonly style="opacity:.65;cursor:not-allowed" placeholder="Enter weight above"/>
+      </div>
+      <div class="fg">
+        <label>Calculated Total</label>
+        <input type="text" id="fCalcTotal" readonly style="opacity:.65;cursor:not-allowed;color:var(--forest);font-weight:600" placeholder="—"/>
+      </div>
+    </div>
+    <button type="button" onclick="applyCalcPrice()" style="margin-top:12px;padding:9px 20px;background:var(--gold);color:var(--forest);border:none;border-radius:3px;font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:500;cursor:pointer;transition:background .2s" onmouseover="this.style.background='#e4b85a'" onmouseout="this.style.background='#c8922a'">
+      ✓ Use This Price
+    </button>
+    <span style="font-size:.75rem;color:#888;margin-left:10px">Tap to apply calculated price to the Price field above</span>
+  </div>
+  <div class="form-row">
+    <div class="fg"><label>25% Deposit (auto)</label><input type="text" id="fDepCalc" readonly style="opacity:.65;cursor:not-allowed"/></div>
+    <div class="fg"><label>Status</label>
+      <select id="fStatus"><option value="true">Available</option><option value="false">Reserved</option></select>
+    </div>
+  </div>
+  <div class="form-row"><div class="fg full"><label>Description</label><textarea id="fDesc" placeholder="Health notes, temperament, Udhiyah eligibility..."></textarea></div></div>
+
   <div class="fg" style="margin-bottom:16px">
     <label>Media Type</label>
     <select id="fMediaType" onchange="toggleMediaInput()">
@@ -433,7 +456,7 @@ async function resetForm(){
   document.getElementById('editId').value='';
   document.getElementById('formTitle').textContent='Add New Lamb';
   document.getElementById('deleteBtn').style.display='none';
-  ['fLambName','fAge','fDesc','fMediaUrl'].forEach(f=>document.getElementById(f).value='');
+  ['fLambName','fAge','fDesc','fMediaUrl','fPricePerLb','fWeightDisplay','fCalcTotal'].forEach(f=>document.getElementById(f).value='');
   ['fWeight','fPrice'].forEach(f=>document.getElementById(f).value='');
   document.getElementById('fBreed').selectedIndex=0;
   document.getElementById('fStatus').selectedIndex=0;
@@ -478,7 +501,32 @@ async function editLamb(id){
   }catch(e){toast('⚠️ Error loading lamb data');}
 }
 
-function calcDeposit(){const p=parseFloat(document.getElementById('fPrice').value)||0;document.getElementById('fDepCalc').value=p?`$${Math.round(p*.25)}`:''}
+function calcDeposit(){
+  const p=parseFloat(document.getElementById('fPrice').value)||0;
+  document.getElementById('fDepCalc').value=p?`$${Math.round(p*.25)}`:'';
+}
+
+function calcPriceFromLb(){
+  const w=parseFloat(document.getElementById('fWeight').value)||0;
+  const pplb=parseFloat(document.getElementById('fPricePerLb').value)||0;
+  document.getElementById('fWeightDisplay').value=w?`${w} lbs`:'';
+  if(w&&pplb){
+    const total=Math.round(w*pplb*100)/100;
+    document.getElementById('fCalcTotal').value=`$${total.toFixed(2)}`;
+  } else {
+    document.getElementById('fCalcTotal').value='';
+  }
+}
+
+function applyCalcPrice(){
+  const w=parseFloat(document.getElementById('fWeight').value)||0;
+  const pplb=parseFloat(document.getElementById('fPricePerLb').value)||0;
+  if(!w||!pplb){toast('⚠️ Enter weight and price per lb first');return;}
+  const total=Math.round(w*pplb*100)/100;
+  document.getElementById('fPrice').value=total.toFixed(2);
+  calcDeposit();
+  toast(`✓ Price set to $${total.toFixed(2)}`);
+}
 
 function toggleMediaInput(){
   const t=document.getElementById('fMediaType').value;
