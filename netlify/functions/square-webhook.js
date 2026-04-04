@@ -2,17 +2,14 @@ const https = require('https');
 const crypto = require('crypto');
 
 const SQUARE_WEBHOOK_SIGNATURE_KEY = 'g8cTyi6D3GKAc8E7v0yE7g';
-const SQUARE_ACCESS_TOKEN = 'EAAAlyv_zslUDGu4TXvvIx5L_6zSBhQaifNoknH_Sa0XKzaK2PwbNbRMXjZFhSAu';
 const SB_URL = 'https://suyyqepxyucygkpdrqzi.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1eXlxZXB4eXVjeWdrcGRycXppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNjMzNDMsImV4cCI6MjA5MDgzOTM0M30.DyFlELcgVNHarIV_Z0D_redurv4EMwl_w6H_Hog2vy8';
-const NOTIFICATION_EMAIL = 'thelambplace@gmail.com';
 
 function verifySig(body, sig, url) {
   try {
     const hmac = crypto.createHmac('sha256', SQUARE_WEBHOOK_SIGNATURE_KEY);
     hmac.update(url + body);
-    const expected = hmac.digest('base64');
-    return expected === sig;
+    return hmac.digest('base64') === sig;
   } catch(e) { return false; }
 }
 
@@ -27,26 +24,19 @@ async function sbFetch(path, method, body) {
         'apikey': SB_KEY,
         'Authorization': `Bearer ${SB_KEY}`,
         'Content-Type': 'application/json',
-        'Prefer': method === 'POST' ? 'return=representation' : 'return=minimal'
+        'Prefer': method === 'PATCH' ? 'return=minimal' : 'return=representation'
       }
     };
     if(data) options.headers['Content-Length'] = Buffer.byteLength(data);
     const req = https.request(options, (res) => {
       let d = '';
       res.on('data', c => d += c);
-      res.on('end', () => resolve(d ? JSON.parse(d) : null));
+      res.on('end', () => { try { resolve(d ? JSON.parse(d) : null); } catch(e) { resolve(null); } });
     });
     req.on('error', reject);
     if(data) req.write(data);
     req.end();
   });
-}
-
-async function sendEmail(to, subject, body) {
-  // Use Square's notification — we'll log the payment details
-  // and rely on Supabase + admin panel for tracking
-  console.log(`Email would be sent to ${to}: ${subject}`);
-  console.log(body);
 }
 
 exports.handler = async (event) => {
@@ -56,9 +46,8 @@ exports.handler = async (event) => {
 
   const body = event.body;
   const sig = event.headers['x-square-hmacsha256-signature'];
-  const url = `https://thelambplace.com/.netlify/functions/square-webhook`;
+  const url = 'https://thelambplace.com/.netlify/functions/square-webhook';
 
-  // Verify signature
   if (!verifySig(body, sig, url)) {
     console.log('Invalid signature');
     return { statusCode: 401, body: 'Unauthorized' };
@@ -70,77 +59,65 @@ exports.handler = async (event) => {
   }
 
   const eventType = payload.type;
-  console.log('Square webhook event:', eventType);
+  const payment = payload.data && payload.data.object && payload.data.object.payment;
 
-  // Handle payment completed
-  if (eventType === 'payment.updated' || eventType === 'payment.created') {
-    const payment = payload.data && payload.data.object && payload.data.object.payment;
-    if (!payment) return { statusCode: 200, body: 'OK' };
+  if (!payment) return { statusCode: 200, body: 'OK' };
 
-    if (payment.status === 'COMPLETED') {
-      const amountPaid = (payment.amount_money.amount / 100).toFixed(2);
-      const paymentId = payment.id;
-      const note = payment.note || '';
+  console.log(`Event: ${eventType} | Status: ${payment.status} | Amount: ${payment.amount_money ? payment.amount_money.amount : 'N/A'}`);
 
-      console.log(`Payment completed: $${amountPaid} - ${note}`);
+  // Only act on completed payments
+  if (payment.status === 'COMPLETED') {
+    const amountPaid = payment.amount_money ? (payment.amount_money.amount / 100) : 0;
+    const paymentId = payment.id;
+    const note = payment.note || '';
 
-      // Find reservation by matching amount or note
-      try {
-        const reservations = await sbFetch(
-          `reservations?status=eq.awaiting_payment&order=created_at.desc&limit=10`,
-          'GET'
-        );
+    try {
+      // Find matching awaiting_payment reservation
+      const reservations = await sbFetch(
+        'reservations?status=eq.awaiting_payment&order=created_at.desc&limit=20',
+        'GET'
+      );
 
-        if (reservations && reservations.length > 0) {
-          // Find best matching reservation
-          const match = reservations.find(r =>
-            Math.abs(r.deposit - parseFloat(amountPaid)) < 1 ||
-            note.includes(r.lamb_name) ||
-            note.includes(r.lamb_id)
-          ) || reservations[0];
+      if (reservations && reservations.length > 0) {
+        const match = reservations.find(r =>
+          Math.abs(Number(r.deposit) - amountPaid) < 1 ||
+          note.includes(r.lamb_name) ||
+          note.includes(r.lamb_id)
+        ) || reservations[0];
 
-          if (match) {
-            // Update reservation to paid
-            await sbFetch(
-              `reservations?id=eq.${match.id}`,
-              'PATCH',
-              { status: 'paid', payment_id: paymentId }
-            );
+        if (match) {
+          // Mark reservation as paid
+          await sbFetch(
+            `reservations?id=eq.${match.id}`,
+            'PATCH',
+            { status: 'paid', payment_id: paymentId }
+          );
 
-            // Mark lamb as reserved
-            await sbFetch(
-              `lambs?farm_id=eq.${match.lamb_id}`,
-              'PATCH',
-              { available: false }
-            );
+          // NOW mark lamb as reserved — only after payment confirmed
+          await sbFetch(
+            `lambs?farm_id=eq.${match.lamb_id}`,
+            'PATCH',
+            { available: false }
+          );
 
-            console.log(`Reservation ${match.id} marked as paid`);
-
-            // Log confirmation details for admin
-            const pickupTxt = match.pickup === 'eid1' ? 'Day 1 of Eid' : 'Day 2 of Eid';
-            const balanceDue = match.balance_due || 0;
-            console.log(`
-PAID RESERVATION — THE LAMB PLACE
-===================================
-Payment ID: ${paymentId}
-Amount Paid: $${amountPaid}
-
-LAMB: ${match.lamb_name} (${match.lamb_id})
-Total: $${match.total}
-Balance Due on Pickup: $${balanceDue}
-Pickup: ${pickupTxt}
-
-CUSTOMER
-Name: ${match.customer_name}
-Phone: ${match.phone}
-Email: ${match.email}
-Notes: ${match.notes || 'None'}
-            `);
-          }
+          console.log(`✅ Payment confirmed — Reservation ${match.id} paid, lamb ${match.lamb_id} reserved`);
         }
-      } catch(e) {
-        console.error('DB error:', e.message);
       }
+    } catch(e) {
+      console.error('DB error:', e.message);
+    }
+  }
+
+  // Clean up old pending/abandoned reservations (older than 1 hour)
+  if (eventType === 'payment.updated') {
+    try {
+      const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
+      await sbFetch(
+        `reservations?status=eq.awaiting_payment&created_at=lt.${oneHourAgo}`,
+        'DELETE'
+      );
+    } catch(e) {
+      console.log('Cleanup skipped:', e.message);
     }
   }
 
