@@ -668,14 +668,8 @@ async function processPayment(){
       if(idx>-1) allLambs[idx].available=false;
       renderGrid(currentFilter);
 
-      // Send confirmation email
-      const sub = encodeURIComponent(`New Reservation — ${window._pendingRec.lamb_name} (${window._pendingRec.lamb_id}) — ${window._pendingRec.customer_name}`);
-      const line = window._pif ? `Full Payment: $${window._price}` : `Deposit: $${window._dep} | Balance due on pickup: $${window._price - window._dep}`;
-      const emailBody = encodeURIComponent(`NEW RESERVATION — THE LAMB PLACE\n==================================\nDate: ${new Date().toLocaleString()}\n\nLAMB: ${window._pendingRec.lamb_name} (${window._pendingRec.lamb_id})\nTotal: $${window._price}\n${line}\nPickup: ${window._pickupLabel}\n\nCUSTOMER\nName: ${window._pendingRec.customer_name}\nPhone: ${window._pendingRec.phone}\nEmail: ${window._pendingRec.email}\nNotes: ${window._pendingRec.notes||'None'}\n\nPayment Link: ${data.paymentUrl}\n\n--\nThe Lamb Place · (717) 449-6072`);
-      setTimeout(()=>{ window.location.href = `mailto:thelambplace@gmail.com?subject=${sub}&body=${emailBody}`; }, 500);
-
-      // Redirect to Square payment
-      setTimeout(()=>{ window.location.href = data.paymentUrl; }, 1500);
+      // Redirect straight to Square payment — email sent by webhook after payment completes
+      window.location.href = data.paymentUrl;
 
     } else {
       throw new Error(data.error || 'Could not create payment link');
