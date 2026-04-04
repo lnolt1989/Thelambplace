@@ -637,6 +637,10 @@ async function processPayment(){
   btn.textContent = '⏳ Creating payment link...';
 
   try {
+    // Save reservation as pending_payment BEFORE going to Square
+    // Webhook will update it to 'paid' after payment confirmed
+    await sb('reservations','POST', window._pendingRec);
+
     const res = await fetch('/.netlify/functions/square-payment', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -645,18 +649,18 @@ async function processPayment(){
         title: window._pif
           ? `Full Payment — ${window._pendingRec.lamb_name} — The Lamb Place`
           : `25% Deposit — ${window._pendingRec.lamb_name} — The Lamb Place`,
-        description: `Customer: ${window._pendingRec.customer_name} | Phone: ${window._pendingRec.phone} | Pickup: ${window._pickupLabel}`,
-        reservationData: window._pendingRec,
-        lambUUID: window._pendingLambId
+        description: `${window._pendingRec.lamb_id}|${window._pendingRec.customer_name}|${window._pendingRec.phone}|${window._pendingRec.pickup}`
       })
     });
 
     const data = await res.json();
 
     if(data.success && data.paymentUrl){
-      // Redirect to Square — nothing saved until webhook confirms payment
+      // Redirect to Square — webhook saves reservation and marks lamb reserved after payment
       window.location.href = data.paymentUrl;
     } else {
+      // Clean up pending reservation if payment link failed
+      await sb('reservations','DELETE',null,`?lamb_id=eq.${window._pendingRec.lamb_id}&status=eq.pending_payment`).catch(()=>{});
       throw new Error(data.error || 'Could not create payment link');
     }
 
