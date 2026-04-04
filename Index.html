@@ -659,16 +659,12 @@ async function processPayment(){
     const data = await res.json();
 
     if(data.success && data.paymentUrl){
-      // Mark lamb reserved and update reservation status
-      await sb('lambs','PATCH',{available:false},`?id=eq.${window._pendingLambId}`);
+      // Update reservation status to awaiting payment only — lamb stays available
+      // Webhook will mark lamb reserved ONLY after Square confirms payment
       await sb('reservations','PATCH',{status:'awaiting_payment'},
         `?lamb_id=eq.${window._pendingRec.lamb_id}&status=eq.pending_payment`);
 
-      const idx = allLambs.findIndex(l=>l.id===window._pendingLambId);
-      if(idx>-1) allLambs[idx].available=false;
-      renderGrid(currentFilter);
-
-      // Redirect straight to Square payment — email sent by webhook after payment completes
+      // Redirect straight to Square payment
       window.location.href = data.paymentUrl;
 
     } else {
