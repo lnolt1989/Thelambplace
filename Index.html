@@ -441,7 +441,8 @@ input[readonly]{opacity:.65;cursor:not-allowed}
 </div>
 
 <script src="https://web.squarecdn.com/v1/square.js"></script>
-<script>const SB_URL='https://suyyqepxyucygkpdrqzi.supabase.co';
+<script>
+const SB_URL='https://suyyqepxyucygkpdrqzi.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1eXlxZXB4eXVjeWdrcGRycXppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNjMzNDMsImV4cCI6MjA5MDgzOTM0M30.DyFlELcgVNHarIV_Z0D_redurv4EMwl_w6H_Hog2vy8';
 
 async function sb(table,method,body,query){
@@ -649,7 +650,12 @@ let squarePayments = null;
 
 async function initSquareCard(){
   try {
-    squarePayments = Square.payments(SQ_APP_ID, SQ_LOCATION_ID);
+    // Wait for Square SDK to be fully ready
+    if(typeof Square === 'undefined'){
+      document.getElementById('sq-card').innerHTML = '<p style="color:#c0392b;font-size:.85rem">Payment system loading... please wait a moment and try again. Or call (717) 449-6072.</p>';
+      return;
+    }
+    squarePayments = await Square.payments(SQ_APP_ID, SQ_LOCATION_ID);
     squareCard = await squarePayments.card({
       style: {
         '.input-container': { borderColor: '#c8922a', borderRadius: '3px' },
@@ -659,8 +665,13 @@ async function initSquareCard(){
       }
     });
     await squareCard.attach('#sq-card');
+    document.getElementById('sq-card').style.minHeight = 'auto';
   } catch(e) {
-    document.getElementById('sq-card').innerHTML = '<p style="color:#c0392b;font-size:.85rem">Card form failed to load. Please call (717) 449-6072 to reserve.</p>';
+    console.error('Square error:', e);
+    document.getElementById('sq-card').innerHTML = `<div style="color:rgba(245,228,188,.8);font-size:.85rem;padding:16px;text-align:center">
+      <p style="margin-bottom:12px">Card form unavailable. Please call us to complete your reservation:</p>
+      <a href="tel:7174496072" style="display:inline-block;padding:12px 28px;background:var(--gold);color:var(--forest);border-radius:3px;font-weight:700;text-decoration:none;font-size:1rem">📞 Call (717) 449-6072</a>
+    </div>`;
   }
 }
 
