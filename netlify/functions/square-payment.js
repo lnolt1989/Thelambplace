@@ -1,40 +1,66 @@
 const https = require('https');
 
 exports.handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+      },
+      body: ''
+    };
+  }
+
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
-  const SQUARE_ACCESS_TOKEN = process.env.SQUARE_ACCESS_TOKEN;
-  const SQUARE_LOCATION_ID = process.env.SQUARE_LOCATION_ID;
+  const SQUARE_ACCESS_TOKEN = 'EAAAlyv_zslUDGu4TXvvIx5L_6zSBhQaifNoknH_Sa0XKzaK2PwbNbRMXjZFhSAu';
+  const SQUARE_LOCATION_ID = '6C19N8VVZFCC5';
 
   let body;
   try {
     body = JSON.parse(event.body);
   } catch (e) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Invalid request body' }) };
+    return {
+      statusCode: 400,
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ error: 'Invalid request body' })
+    };
   }
 
-  const { sourceId, amountCents, note } = body;
+  const { amountCents, title, description } = body;
 
-  if (!sourceId || !amountCents) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Missing required fields' }) };
+  if (!amountCents || !title) {
+    return {
+      statusCode: 400,
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ error: 'Missing required fields' })
+    };
   }
 
   const idempotencyKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
   const paymentData = JSON.stringify({
-    source_id: sourceId,
     idempotency_key: idempotencyKey,
-    amount_money: { amount: amountCents, currency: 'USD' },
-    location_id: SQUARE_LOCATION_ID,
-    note: note || 'The Lamb Place reservation'
+    quick_pay: {
+      name: title,
+      price_money: {
+        amount: amountCents,
+        currency: 'USD'
+      },
+      location_id: SQUARE_LOCATION_ID
+    },
+    description: description || '',
+    redirect_url: 'https://thelambplace.com'
   });
 
   return new Promise((resolve) => {
     const options = {
       hostname: 'connect.squareup.com',
-      path: '/v2/payments',
+      path: '/v2/online-checkout/payment-links',
       method: 'POST',
       headers: {
         'Square-Version': '2024-01-18',
@@ -48,18 +74,26 @@ exports.handler = async (event) => {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
       res.on('end', () => {
-        const parsed = JSON.parse(data);
-        if (res.statusCode === 200 && parsed.payment && parsed.payment.status === 'COMPLETED') {
+        try {
+          const parsed = JSON.parse(data);
+          if (res.statusCode === 200 && parsed.payment_link && parsed.payment_link.url) {
+            resolve({
+              statusCode: 200,
+              headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' },
+              body: JSON.stringify({ success: true, paymentUrl: parsed.payment_link.url })
+            });
+          } else {
+            resolve({
+              statusCode: 400,
+              headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' },
+              body: JSON.stringify({ success: false, error: parsed.errors ? parsed.errors[0].detail : 'Failed to create payment link' })
+            });
+          }
+        } catch(e) {
           resolve({
-            statusCode: 200,
+            statusCode: 500,
             headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ success: true, paymentId: parsed.payment.id })
-          });
-        } else {
-          resolve({
-            statusCode: 400,
-            headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ success: false, error: parsed.errors ? parsed.errors[0].detail : 'Payment failed' })
+            body: JSON.stringify({ success: false, error: 'Parse error' })
           });
         }
       });
