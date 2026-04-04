@@ -4,11 +4,7 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS'
-      },
+      headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' },
       body: ''
     };
   }
@@ -21,36 +17,27 @@ exports.handler = async (event) => {
   const SQUARE_LOCATION_ID = '6C19N8VVZFCC5';
 
   let body;
-  try {
-    body = JSON.parse(event.body);
-  } catch (e) {
-    return {
-      statusCode: 400,
-      headers: { 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ error: 'Invalid request body' })
-    };
-  }
+  try { body = JSON.parse(event.body); }
+  catch (e) { return { statusCode: 400, headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ error: 'Invalid request body' }) }; }
 
-  const { amountCents, title, description } = body;
+  const { amountCents, title, description, reservationData, lambUUID } = body;
 
   if (!amountCents || !title) {
-    return {
-      statusCode: 400,
-      headers: { 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ error: 'Missing required fields' })
-    };
+    return { statusCode: 400, headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ error: 'Missing required fields' }) };
   }
 
   const idempotencyKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  // Store reservation data in note for webhook to retrieve
+  const noteData = reservationData ? JSON.stringify({ ...reservationData, lambUUID }) : description;
+  // Keep note under 500 chars
+  const note = noteData.length > 490 ? `${reservationData.lamb_id}|${reservationData.lamb_name}|${reservationData.customer_name}|${reservationData.phone}|${reservationData.email}|${reservationData.pickup}|${reservationData.payment_type}|${reservationData.deposit}|${reservationData.balance_due}|${reservationData.total}|${lambUUID}` : noteData;
 
   const paymentData = JSON.stringify({
     idempotency_key: idempotencyKey,
     quick_pay: {
       name: title,
-      price_money: {
-        amount: amountCents,
-        currency: 'USD'
-      },
+      price_money: { amount: amountCents, currency: 'USD' },
       location_id: SQUARE_LOCATION_ID
     },
     description: description || '',
@@ -80,7 +67,7 @@ exports.handler = async (event) => {
             resolve({
               statusCode: 200,
               headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' },
-              body: JSON.stringify({ success: true, paymentUrl: parsed.payment_link.url })
+              body: JSON.stringify({ success: true, paymentUrl: parsed.payment_link.url, paymentLinkId: parsed.payment_link.id })
             });
           } else {
             resolve({
@@ -90,21 +77,13 @@ exports.handler = async (event) => {
             });
           }
         } catch(e) {
-          resolve({
-            statusCode: 500,
-            headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ success: false, error: 'Parse error' })
-          });
+          resolve({ statusCode: 500, headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' }, body: JSON.stringify({ success: false, error: 'Parse error' }) });
         }
       });
     });
 
     req.on('error', (e) => {
-      resolve({
-        statusCode: 500,
-        headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ success: false, error: e.message })
-      });
+      resolve({ statusCode: 500, headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' }, body: JSON.stringify({ success: false, error: e.message }) });
     });
 
     req.write(paymentData);
