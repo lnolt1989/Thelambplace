@@ -1,2 +1,8 @@
 [build]
   functions = "netlify/functions"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "frame-src 'self' https://*.squarecdn.com https://*.squareup.com; script-src 'self' 'unsafe-inline' https://web.squarecdn.com; connect-src 'self' https://*.squareup.com https://*.supabase.co"
+    X-Frame-Options = "SAMEORIGIN"
