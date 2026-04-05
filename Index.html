@@ -483,45 +483,80 @@ function renderGrid(filter){
   const list=currentFilter==='all'?allLambs:allLambs.filter(l=>sizeOf(l.weight)===currentFilter);
   if(!list.length){grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:60px;color:#aaa"><div style="font-size:2rem;margin-bottom:12px">🐑</div><p>No lambs in this category yet. Check back soon!</p></div>';return;}
 
-  const newHtml = list.map(l=>{    const dep=Math.round(l.price*.25);
-    const isPending = pendingLambIds.has(l.farm_id);
-    const statusClass = !l.available ? 'rsvd' : isPending ? 'pend' : 'avail';
-    const canReserve = l.available && !isPending;
+  // First render — build all cards including images
+  const existingCards = grid.querySelectorAll('.card[data-lamb-id]');
+  const existingIds = new Set([...existingCards].map(c=>c.dataset.lambId));
+  const newIds = new Set(list.map(l=>l.id));
 
-    // Calculate countdown for pending lambs
-    let countdownHtml = '';
-    if(isPending && pendingTimestamps[l.farm_id]){
-      const elapsed = Date.now() - new Date(pendingTimestamps[l.farm_id]).getTime();
-      const remaining = Math.max(0, 5 * 60 * 1000 - elapsed);
-      const mins = Math.floor(remaining / 60000);
-      const secs = Math.floor((remaining % 60000) / 1000);
-      countdownHtml = `<div class="countdown" data-farm-id="${l.farm_id}" data-expires="${new Date(pendingTimestamps[l.farm_id]).getTime() + 5*60*1000}" style="font-size:.72rem;color:var(--gold-light);margin-top:4px">⏱ Available in ${mins}:${secs.toString().padStart(2,'0')}</div>`;
-    }
-    const media=l.media_src
-      ?(l.media_type==='video'?`<video src="${l.media_src}" muted playsinline style="width:100%;height:100%;object-fit:cover"></video>`:`<img src="${l.media_src}" alt="${l.name}" loading="lazy"/>`)
-      :`<div class="no-img">📷 360° Media<br/>Coming Soon</div>`;
-    return`<div class="card" onclick="openModal('${l.id}')">
-      <div class="card-img">${media}
-        <div class="badge-360"><svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/></svg> 360°</div>
-        <div class="badge-avail ${statusClass}">${!l.available?'● Reserved':isPending?'⏳ Pending':'● Available'}</div>
-        <div class="play-wrap"><button class="play-c"><svg width="20" viewBox="0 0 24 24" fill="var(--forest)"><polygon points="5,3 19,12 5,21"/></svg></button></div>
-      </div>
-      <div class="card-body">
-        <div class="c-id">${l.farm_id}</div>
-        <div class="c-name">${l.name}</div>
-        <div class="c-specs"><span>🐑 ${l.breed}</span><span>⚖️ ${l.weight} lbs</span><span>📅 ${l.age||''}</span></div>
-        <div class="c-price">$${Number(l.price).toLocaleString()}</div>
-        <div class="c-dep">25% deposit: $${dep}</div>
-        ${countdownHtml}
-        <div class="c-btns">
-          <button class="b-watch" onclick="event.stopPropagation();openModal('${l.id}')">▶ Watch 360°</button>
-          <button class="b-rsv" ${canReserve?'':'disabled'} onclick="event.stopPropagation();openModal('${l.id}')">${!l.available?'Unavailable':isPending?'Pending':'Reserve'}</button>
+  // Rebuild only if lamb list changed
+  if(existingIds.size !== newIds.size || [...newIds].some(id=>!existingIds.has(id))){
+    grid.innerHTML = list.map(l=>{
+      const dep=Math.round(l.price*.25);
+      const isPending = pendingLambIds.has(l.farm_id);
+      const statusClass = !l.available ? 'rsvd' : isPending ? 'pend' : 'avail';
+      const canReserve = l.available && !isPending;
+      const media=l.media_src
+        ?(l.media_type==='video'?`<video src="${l.media_src}" muted playsinline style="width:100%;height:100%;object-fit:cover"></video>`:`<img src="${l.media_src}" alt="${l.name}" loading="lazy"/>`)
+        :`<div class="no-img">📷 360° Media<br/>Coming Soon</div>`;
+      return`<div class="card" data-lamb-id="${l.id}" data-farm-id="${l.farm_id}" onclick="openModal('${l.id}')">
+        <div class="card-img">${media}
+          <div class="badge-360"><svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/></svg> 360°</div>
+          <div class="badge-avail ${statusClass}" data-status-badge>${!l.available?'● Reserved':isPending?'⏳ Pending':'● Available'}</div>
+          <div class="play-wrap"><button class="play-c"><svg width="20" viewBox="0 0 24 24" fill="var(--forest)"><polygon points="5,3 19,12 5,21"/></svg></button></div>
         </div>
-      </div>
-    </div>`;
-  }).join('');
-  // Only update DOM if content changed — prevents flash on silent refresh
-  if(grid.innerHTML !== newHtml) grid.innerHTML = newHtml;
+        <div class="card-body">
+          <div class="c-id">${l.farm_id}</div>
+          <div class="c-name">${l.name}</div>
+          <div class="c-specs"><span>🐑 ${l.breed}</span><span>⚖️ ${l.weight} lbs</span><span>📅 ${l.age||''}</span></div>
+          <div class="c-price">$${Number(l.price).toLocaleString()}</div>
+          <div class="c-dep">25% deposit: $${dep}</div>
+          <div class="card-dynamic"></div>
+          <div class="c-btns">
+            <button class="b-watch" onclick="event.stopPropagation();openModal('${l.id}')">▶ Watch 360°</button>
+            <button class="b-rsv" data-rsv-btn ${canReserve?'':'disabled'} onclick="event.stopPropagation();openModal('${l.id}')">${!l.available?'Unavailable':isPending?'Pending':'Reserve'}</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    // Cards exist — just update status badges, buttons and countdown without touching images
+    list.forEach(l=>{
+      const card = grid.querySelector(`.card[data-lamb-id="${l.id}"]`);
+      if(!card) return;
+      const isPending = pendingLambIds.has(l.farm_id);
+      const statusClass = !l.available ? 'rsvd' : isPending ? 'pend' : 'avail';
+      const canReserve = l.available && !isPending;
+
+      // Update badge
+      const badge = card.querySelector('[data-status-badge]');
+      if(badge){
+        badge.className = `badge-avail ${statusClass}`;
+        badge.textContent = !l.available?'● Reserved':isPending?'⏳ Pending':'● Available';
+      }
+
+      // Update reserve button
+      const rsvBtn = card.querySelector('[data-rsv-btn]');
+      if(rsvBtn){
+        rsvBtn.disabled = !canReserve;
+        rsvBtn.textContent = !l.available?'Unavailable':isPending?'Pending':'Reserve';
+      }
+
+      // Update countdown
+      const dynamic = card.querySelector('.card-dynamic');
+      if(dynamic){
+        if(isPending && pendingTimestamps[l.farm_id]){
+          const expires = new Date(pendingTimestamps[l.farm_id]).getTime() + 5*60*1000;
+          const remaining = Math.max(0, expires - Date.now());
+          const mins = Math.floor(remaining / 60000);
+          const secs = Math.floor((remaining % 60000) / 1000);
+          dynamic.innerHTML = `<div class="countdown" data-farm-id="${l.farm_id}" data-expires="${expires}" style="font-size:.72rem;color:var(--gold-light);margin-top:4px">⏱ Available in ${mins}:${secs.toString().padStart(2,'0')}</div>`;
+        } else {
+          dynamic.innerHTML = '';
+        }
+      }
+    });
+  }
+
   // Start live countdown ticker if any lambs are pending
   if(pendingLambIds.size > 0) startCountdownTicker();
 }
