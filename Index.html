@@ -448,7 +448,9 @@ async function sb(table,method,body,query){
     body:body?JSON.stringify(body):null
   });
   const txt=await res.text();
-  return txt?JSON.parse(txt):null;
+  const parsed=txt?JSON.parse(txt):null;
+  if(!res.ok){ throw new Error(parsed?.message||parsed?.error||`HTTP ${res.status}`); }
+  return parsed;
 }
 
 let allLambs=[],current=null,paymentChoice='deposit',currentFilter='all';
@@ -657,8 +659,11 @@ async function processPayment(){
 
   try {
     // Save reservation as pending_payment BEFORE going to Square
-    // Webhook will update it to 'paid' after payment confirmed
-    await sb('reservations','POST', window._pendingRec);
+    const savedRes = await sb('reservations','POST', window._pendingRec);
+    if(!savedRes || (Array.isArray(savedRes) && savedRes.length === 0)) {
+      throw new Error('Failed to save reservation to database');
+    }
+    console.log('Reservation saved:', savedRes);
 
     const res = await fetch('/.netlify/functions/square-payment', {
       method: 'POST',
