@@ -456,15 +456,18 @@ async function sb(table,method,body,query){
 let allLambs=[],current=null,paymentChoice='deposit',currentFilter='all';
 
 let pendingLambIds = new Set();
+let pendingTimestamps = {}; // farm_id -> created_at timestamp
 
 async function loadLambs(){
   try{
     const [lambsData, pendingData] = await Promise.all([
       sb('lambs','GET',null,'?select=*&order=farm_id.asc'),
-      sb('reservations','GET',null,'?status=eq.pending_payment&select=lamb_id')
+      sb('reservations','GET',null,'?status=eq.pending_payment&select=lamb_id,created_at')
     ]);
     allLambs = lambsData || [];
     pendingLambIds = new Set((pendingData || []).map(r => r.lamb_id));
+    pendingTimestamps = {};
+    (pendingData || []).forEach(r => { pendingTimestamps[r.lamb_id] = r.created_at; });
     renderGrid(currentFilter);
     renderGallery();
   }catch(e){
@@ -479,19 +482,27 @@ function renderGrid(filter){
   const grid=document.getElementById('grid');
   const list=currentFilter==='all'?allLambs:allLambs.filter(l=>sizeOf(l.weight)===currentFilter);
   if(!list.length){grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:60px;color:#aaa"><div style="font-size:2rem;margin-bottom:12px">🐑</div><p>No lambs in this category yet. Check back soon!</p></div>';return;}
-  grid.innerHTML=list.map(l=>{
-    const dep=Math.round(l.price*.25);
+  grid.innerHTML=list.map(l=>{    const dep=Math.round(l.price*.25);
     const isPending = pendingLambIds.has(l.farm_id);
     const statusClass = !l.available ? 'rsvd' : isPending ? 'pend' : 'avail';
-    const statusText = !l.available ? '● Reserved' : isPending ? '⏳ Pending' : '● Available';
     const canReserve = l.available && !isPending;
+
+    // Calculate countdown for pending lambs
+    let countdownHtml = '';
+    if(isPending && pendingTimestamps[l.farm_id]){
+      const elapsed = Date.now() - new Date(pendingTimestamps[l.farm_id]).getTime();
+      const remaining = Math.max(0, 5 * 60 * 1000 - elapsed);
+      const mins = Math.floor(remaining / 60000);
+      const secs = Math.floor((remaining % 60000) / 1000);
+      countdownHtml = `<div class="countdown" data-farm-id="${l.farm_id}" data-expires="${new Date(pendingTimestamps[l.farm_id]).getTime() + 5*60*1000}" style="font-size:.72rem;color:var(--gold-light);margin-top:4px">⏱ Available in ${mins}:${secs.toString().padStart(2,'0')}</div>`;
+    }
     const media=l.media_src
       ?(l.media_type==='video'?`<video src="${l.media_src}" muted playsinline style="width:100%;height:100%;object-fit:cover"></video>`:`<img src="${l.media_src}" alt="${l.name}" loading="lazy"/>`)
       :`<div class="no-img">📷 360° Media<br/>Coming Soon</div>`;
     return`<div class="card" onclick="openModal('${l.id}')">
       <div class="card-img">${media}
         <div class="badge-360"><svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/></svg> 360°</div>
-        <div class="badge-avail ${statusClass}">${statusText}</div>
+        <div class="badge-avail ${statusClass}">${!l.available?'● Reserved':isPending?'⏳ Pending':'● Available'}</div>
         <div class="play-wrap"><button class="play-c"><svg width="20" viewBox="0 0 24 24" fill="var(--forest)"><polygon points="5,3 19,12 5,21"/></svg></button></div>
       </div>
       <div class="card-body">
@@ -500,6 +511,7 @@ function renderGrid(filter){
         <div class="c-specs"><span>🐑 ${l.breed}</span><span>⚖️ ${l.weight} lbs</span><span>📅 ${l.age||''}</span></div>
         <div class="c-price">$${Number(l.price).toLocaleString()}</div>
         <div class="c-dep">25% deposit: $${dep}</div>
+        ${countdownHtml}
         <div class="c-btns">
           <button class="b-watch" onclick="event.stopPropagation();openModal('${l.id}')">▶ Watch 360°</button>
           <button class="b-rsv" ${canReserve?'':'disabled'} onclick="event.stopPropagation();openModal('${l.id}')">${!l.available?'Unavailable':isPending?'Pending':'Reserve'}</button>
@@ -507,6 +519,8 @@ function renderGrid(filter){
       </div>
     </div>`;
   }).join('');
+  // Start live countdown ticker if any lambs are pending
+  if(pendingLambIds.size > 0) startCountdownTicker();
 }
 
 document.querySelectorAll('.fb').forEach(b=>{
@@ -731,6 +745,32 @@ document.getElementById('bQty').addEventListener('change',function(){document.ge
 function submitBulk(){
   if(!document.getElementById('bName').value.trim()||!document.getElementById('bPhone').value.trim()||!document.getElementById('bQty').value){alert('Please fill in name, phone, and quantity.');return;}
   document.getElementById('bulkForm').style.display='none';document.getElementById('bulkSuccess').style.display='block';
+}
+
+// Countdown ticker — updates every second
+let countdownInterval = null;
+function startCountdownTicker(){
+  if(countdownInterval) clearInterval(countdownInterval);
+  countdownInterval = setInterval(()=>{
+    const countdowns = document.querySelectorAll('.countdown');
+    let anyExpired = false;
+    countdowns.forEach(el=>{
+      const expires = parseInt(el.dataset.expires);
+      const remaining = Math.max(0, expires - Date.now());
+      if(remaining === 0){
+        anyExpired = true;
+      } else {
+        const mins = Math.floor(remaining / 60000);
+        const secs = Math.floor((remaining % 60000) / 1000);
+        el.textContent = `⏱ Available in ${mins}:${secs.toString().padStart(2,'0')}`;
+      }
+    });
+    // If any timer expired, reload lambs to show updated status
+    if(anyExpired){
+      clearInterval(countdownInterval);
+      loadLambs();
+    }
+  }, 1000);
 }
 
 loadLambs();
