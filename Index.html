@@ -747,15 +747,15 @@ function submitBulk(){
   document.getElementById('bulkForm').style.display='none';document.getElementById('bulkSuccess').style.display='block';
 }
 
-// Countdown ticker — updates every second
 let countdownInterval = null;
 function startCountdownTicker(){
   if(countdownInterval) clearInterval(countdownInterval);
-  countdownInterval = setInterval(()=>{
+  countdownInterval = setInterval(async ()=>{
     const countdowns = document.querySelectorAll('.countdown');
     let anyExpired = false;
     countdowns.forEach(el=>{
       const expires = parseInt(el.dataset.expires);
+      const farmId = el.dataset.farmId;
       const remaining = Math.max(0, expires - Date.now());
       if(remaining === 0){
         anyExpired = true;
@@ -765,10 +765,15 @@ function startCountdownTicker(){
         el.textContent = `⏱ Available in ${mins}:${secs.toString().padStart(2,'0')}`;
       }
     });
-    // If any timer expired, reload lambs to show updated status
     if(anyExpired){
       clearInterval(countdownInterval);
-      loadLambs();
+      // Delete expired pending reservations from database
+      try {
+        const fiveMinsAgo = new Date(Date.now() - 5*60*1000).toISOString();
+        await sb('reservations','DELETE',null,`?status=eq.pending_payment&created_at=lt.${fiveMinsAgo}`);
+      } catch(e){}
+      // Reload to show updated status
+      await loadLambs();
     }
   }, 1000);
 }
