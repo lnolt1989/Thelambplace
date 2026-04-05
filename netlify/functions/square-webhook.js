@@ -108,5 +108,17 @@ exports.handler = async (event) => {
     console.error('Error:', e.message);
   }
 
+  // Clean up abandoned pending reservations older than 10 minutes
+  try {
+    const tenMinsAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    await sbFetch(
+      `reservations?status=eq.pending_payment&created_at=lt.${tenMinsAgo}`,
+      'DELETE'
+    );
+    console.log('Cleaned up old pending reservations');
+  } catch(e) {
+    console.log('Cleanup skipped:', e.message);
+  }
+
   return { statusCode: 200, body: 'OK' };
 };
