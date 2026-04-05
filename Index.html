@@ -458,7 +458,7 @@ let allLambs=[],current=null,paymentChoice='deposit',currentFilter='all';
 let pendingLambIds = new Set();
 let pendingTimestamps = {}; // farm_id -> created_at timestamp
 
-async function loadLambs(){
+async function loadLambs(silent=false){
   try{
     const [lambsData, pendingData] = await Promise.all([
       sb('lambs','GET',null,'?select=*&order=farm_id.asc'),
@@ -469,9 +469,9 @@ async function loadLambs(){
     pendingTimestamps = {};
     (pendingData || []).forEach(r => { pendingTimestamps[r.lamb_id] = r.created_at; });
     renderGrid(currentFilter);
-    renderGallery();
+    if(!silent) renderGallery();
   }catch(e){
-    document.getElementById('grid').innerHTML='<div style="grid-column:1/-1;text-align:center;padding:60px;color:#aaa"><p>Unable to load lambs. Please call (717) 449-6072 to reserve.</p></div>';
+    if(!silent) document.getElementById('grid').innerHTML='<div style="grid-column:1/-1;text-align:center;padding:60px;color:#aaa"><p>Unable to load lambs. Please call (717) 449-6072 to reserve.</p></div>';
   }
 }
 
@@ -482,7 +482,8 @@ function renderGrid(filter){
   const grid=document.getElementById('grid');
   const list=currentFilter==='all'?allLambs:allLambs.filter(l=>sizeOf(l.weight)===currentFilter);
   if(!list.length){grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:60px;color:#aaa"><div style="font-size:2rem;margin-bottom:12px">🐑</div><p>No lambs in this category yet. Check back soon!</p></div>';return;}
-  grid.innerHTML=list.map(l=>{    const dep=Math.round(l.price*.25);
+
+  const newHtml = list.map(l=>{    const dep=Math.round(l.price*.25);
     const isPending = pendingLambIds.has(l.farm_id);
     const statusClass = !l.available ? 'rsvd' : isPending ? 'pend' : 'avail';
     const canReserve = l.available && !isPending;
@@ -519,6 +520,8 @@ function renderGrid(filter){
       </div>
     </div>`;
   }).join('');
+  // Only update DOM if content changed — prevents flash on silent refresh
+  if(grid.innerHTML !== newHtml) grid.innerHTML = newHtml;
   // Start live countdown ticker if any lambs are pending
   if(pendingLambIds.size > 0) startCountdownTicker();
 }
@@ -773,7 +776,7 @@ function startCountdownTicker(){
         await sb('reservations','DELETE',null,`?status=eq.pending_payment&created_at=lt.${fiveMinsAgo}`);
       } catch(e){}
       // Reload to show updated status
-      await loadLambs();
+      await loadLambs(true);
     }
   }, 1000);
 }
