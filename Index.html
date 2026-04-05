@@ -59,6 +59,7 @@ section{position:relative;z-index:5}
 .badge-avail{position:absolute;top:12px;right:12px;font-size:.67rem;letter-spacing:.1em;text-transform:uppercase;padding:5px 12px;border-radius:40px;font-weight:500}
 .avail{background:#0e2e12;color:#7fcc8a;border:1px solid #7fcc8a55}
 .rsvd{background:#2e0e0e;color:#cc7f7f;border:1px solid #cc7f7f55}
+.pend{background:#2e2a0e;color:#e4b85a;border:1px solid #e4b85a55}
 .play-wrap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transition:background .3s}
 .card:hover .play-wrap{background:rgba(8,22,12,.38)}
 .play-c{width:54px;height:54px;background:rgba(200,146,42,.92);border-radius:50%;display:flex;align-items:center;justify-content:center;opacity:0;transform:scale(.8);transition:.25s;border:none;cursor:pointer}
@@ -452,9 +453,16 @@ async function sb(table,method,body,query){
 
 let allLambs=[],current=null,paymentChoice='deposit',currentFilter='all';
 
+let pendingLambIds = new Set();
+
 async function loadLambs(){
   try{
-    allLambs=await sb('lambs','GET',null,'?select=*&order=farm_id.asc')||[];
+    const [lambsData, pendingData] = await Promise.all([
+      sb('lambs','GET',null,'?select=*&order=farm_id.asc'),
+      sb('reservations','GET',null,'?status=eq.pending_payment&select=lamb_id')
+    ]);
+    allLambs = lambsData || [];
+    pendingLambIds = new Set((pendingData || []).map(r => r.lamb_id));
     renderGrid(currentFilter);
     renderGallery();
   }catch(e){
@@ -471,13 +479,17 @@ function renderGrid(filter){
   if(!list.length){grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:60px;color:#aaa"><div style="font-size:2rem;margin-bottom:12px">🐑</div><p>No lambs in this category yet. Check back soon!</p></div>';return;}
   grid.innerHTML=list.map(l=>{
     const dep=Math.round(l.price*.25);
+    const isPending = pendingLambIds.has(l.farm_id);
+    const statusClass = !l.available ? 'rsvd' : isPending ? 'pend' : 'avail';
+    const statusText = !l.available ? '● Reserved' : isPending ? '⏳ Pending' : '● Available';
+    const canReserve = l.available && !isPending;
     const media=l.media_src
       ?(l.media_type==='video'?`<video src="${l.media_src}" muted playsinline style="width:100%;height:100%;object-fit:cover"></video>`:`<img src="${l.media_src}" alt="${l.name}" loading="lazy"/>`)
       :`<div class="no-img">📷 360° Media<br/>Coming Soon</div>`;
     return`<div class="card" onclick="openModal('${l.id}')">
       <div class="card-img">${media}
         <div class="badge-360"><svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/></svg> 360°</div>
-        <div class="badge-avail ${l.available?'avail':'rsvd'}">${l.available?'● Available':'● Reserved'}</div>
+        <div class="badge-avail ${statusClass}">${statusText}</div>
         <div class="play-wrap"><button class="play-c"><svg width="20" viewBox="0 0 24 24" fill="var(--forest)"><polygon points="5,3 19,12 5,21"/></svg></button></div>
       </div>
       <div class="card-body">
@@ -488,7 +500,7 @@ function renderGrid(filter){
         <div class="c-dep">25% deposit: $${dep}</div>
         <div class="c-btns">
           <button class="b-watch" onclick="event.stopPropagation();openModal('${l.id}')">▶ Watch 360°</button>
-          <button class="b-rsv" ${l.available?'':'disabled'} onclick="event.stopPropagation();openModal('${l.id}')">${l.available?'Reserve':'Unavailable'}</button>
+          <button class="b-rsv" ${canReserve?'':'disabled'} onclick="event.stopPropagation();openModal('${l.id}')">${!l.available?'Unavailable':isPending?'Pending':'Reserve'}</button>
         </div>
       </div>
     </div>`;
@@ -561,8 +573,15 @@ function openModal(id){
     <div class="mspec"><div class="msl">Price</div><div class="msv">$${Number(current.price).toLocaleString()}</div></div>
     <div class="mspec"><div class="msl">Deposit</div><div class="msv">$${dep}</div></div>
     <div class="mspec"><div class="msl">Status</div><div class="msv" style="color:${current.available?'#7fcc8a':'#cc7f7f'}">${current.available?'Available':'Reserved'}</div></div>`;
-  document.getElementById('mForm').style.display=current.available?'block':'none';
-  document.getElementById('mSuccess').classList.remove('show');
+  const isPending = pendingLambIds.has(current.farm_id);
+  const canReserve = current.available && !isPending;
+  document.getElementById('mForm').style.display=canReserve?'block':'none';
+  if(!canReserve && isPending){
+    document.getElementById('mSuccess').classList.add('show');
+    document.getElementById('successTxt').innerHTML='⏳ This lamb currently has a pending reservation. It will become available again in 10 minutes if payment is not completed. Please check back shortly or call <strong>(717) 449-6072</strong>.';
+  } else {
+    document.getElementById('mSuccess').classList.remove('show');
+  }
   document.getElementById('mPayment').style.display='none';
   // Reset agreement
   agreed = false;
