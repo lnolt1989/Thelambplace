@@ -705,7 +705,7 @@ async function renderReservations(){
 let adminCountdownInterval = null;
 function startAdminCountdown(){
   if(adminCountdownInterval) clearInterval(adminCountdownInterval);
-  adminCountdownInterval = setInterval(()=>{
+  adminCountdownInterval = setInterval(async ()=>{
     const countdowns = document.querySelectorAll('.admin-countdown');
     let anyExpired = false;
     countdowns.forEach(el=>{
@@ -721,6 +721,11 @@ function startAdminCountdown(){
     });
     if(anyExpired){
       clearInterval(adminCountdownInterval);
+      // Delete expired pending reservations
+      try {
+        const fiveMinsAgo = new Date(Date.now() - 5*60*1000).toISOString();
+        await sb('reservations','DELETE',null,`?status=eq.pending_payment&created_at=lt.${fiveMinsAgo}`);
+      } catch(e){}
       renderReservations();
     }
   }, 1000);
