@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -157,7 +156,6 @@ textarea{resize:vertical;min-height:70px}
   </div>
 
   <!-- DASHBOARD -->
-
   <div class="view active" id="view-dashboard">
     <div class="stats-row">
       <div class="stat"><div class="stat-n">Total Lambs</div><div class="stat-v" id="s-total">—</div><div class="stat-s">Listed on site</div></div>
@@ -176,7 +174,6 @@ textarea{resize:vertical;min-height:70px}
   </div>
 
   <!-- LAMBS LIST -->
-
   <div class="view" id="view-lambs">
     <div class="sh"><h2>All Lambs</h2><button class="tb-btn primary" onclick="navTo('add')">+ Add Lamb</button></div>
     <div class="tbl-wrap">
@@ -188,7 +185,6 @@ textarea{resize:vertical;min-height:70px}
   </div>
 
   <!-- ADD/EDIT LAMB -->
-
   <div class="view" id="view-add">
     <div class="sh"><h2 id="formTitle">Add New Lamb</h2></div>
     <div class="form-card">
@@ -213,74 +209,70 @@ textarea{resize:vertical;min-height:70px}
         <div class="fg"><label>Price ($) *</label><input type="number" id="fPrice" placeholder="e.g. 520" min="1" oninput="calcDeposit()"/></div>
       </div>
 
-```
-  <!-- PRICE PER LB CALCULATOR -->
-  <div style="background:rgba(200,146,42,.08);border:1px solid rgba(200,146,42,.25);border-radius:4px;padding:18px 20px;margin-bottom:16px">
-    <div style="font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:12px">⚖️ Price Per Lb Calculator</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:end">
-      <div class="fg">
-        <label>Price Per Lb ($)</label>
-        <input type="number" id="fPricePerLb" placeholder="e.g. 4.50" min="0" step="0.01" oninput="calcPriceFromLb()"/>
+      <!-- PRICE PER LB CALCULATOR -->
+      <div style="background:rgba(200,146,42,.08);border:1px solid rgba(200,146,42,.25);border-radius:4px;padding:18px 20px;margin-bottom:16px">
+        <div style="font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:12px">⚖️ Price Per Lb Calculator</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:end">
+          <div class="fg">
+            <label>Price Per Lb ($)</label>
+            <input type="number" id="fPricePerLb" placeholder="e.g. 4.50" min="0" step="0.01" oninput="calcPriceFromLb()"/>
+          </div>
+          <div class="fg">
+            <label>Weight (lbs)</label>
+            <input type="text" id="fWeightDisplay" readonly style="opacity:.65;cursor:not-allowed" placeholder="Enter weight above"/>
+          </div>
+          <div class="fg">
+            <label>Calculated Total</label>
+            <input type="text" id="fCalcTotal" readonly style="opacity:.65;cursor:not-allowed;color:var(--forest);font-weight:600" placeholder="—"/>
+          </div>
+        </div>
+        <button type="button" onclick="applyCalcPrice()" style="margin-top:12px;padding:9px 20px;background:var(--gold);color:var(--forest);border:none;border-radius:3px;font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:500;cursor:pointer;transition:background .2s" onmouseover="this.style.background='#e4b85a'" onmouseout="this.style.background='#c8922a'">
+          ✓ Use This Price
+        </button>
+        <span style="font-size:.75rem;color:#888;margin-left:10px">Tap to apply calculated price to the Price field above</span>
       </div>
-      <div class="fg">
-        <label>Weight (lbs)</label>
-        <input type="text" id="fWeightDisplay" readonly style="opacity:.65;cursor:not-allowed" placeholder="Enter weight above"/>
+      <div class="form-row">
+        <div class="fg"><label>25% Deposit (auto)</label><input type="text" id="fDepCalc" readonly style="opacity:.65;cursor:not-allowed"/></div>
+        <div class="fg"><label>Status</label>
+          <select id="fStatus"><option value="true">Available</option><option value="false">Reserved</option></select>
+        </div>
       </div>
-      <div class="fg">
-        <label>Calculated Total</label>
-        <input type="text" id="fCalcTotal" readonly style="opacity:.65;cursor:not-allowed;color:var(--forest);font-weight:600" placeholder="—"/>
-      </div>
-    </div>
-    <button type="button" onclick="applyCalcPrice()" style="margin-top:12px;padding:9px 20px;background:var(--gold);color:var(--forest);border:none;border-radius:3px;font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:500;cursor:pointer;transition:background .2s" onmouseover="this.style.background='#e4b85a'" onmouseout="this.style.background='#c8922a'">
-      ✓ Use This Price
-    </button>
-    <span style="font-size:.75rem;color:#888;margin-left:10px">Tap to apply calculated price to the Price field above</span>
-  </div>
-  <div class="form-row">
-    <div class="fg"><label>25% Deposit (auto)</label><input type="text" id="fDepCalc" readonly style="opacity:.65;cursor:not-allowed"/></div>
-    <div class="fg"><label>Status</label>
-      <select id="fStatus"><option value="true">Available</option><option value="false">Reserved</option></select>
-    </div>
-  </div>
-  <div class="form-row"><div class="fg full"><label>Description</label><textarea id="fDesc" placeholder="Health notes, temperament, Udhiyah eligibility..."></textarea></div></div>
+      <div class="form-row"><div class="fg full"><label>Description</label><textarea id="fDesc" placeholder="Health notes, temperament, Udhiyah eligibility..."></textarea></div></div>
 
-  <div class="fg" style="margin-bottom:16px">
-    <label>Media Type</label>
-    <select id="fMediaType" onchange="toggleMediaInput()">
-      <option value="image">Photo (360° image)</option>
-      <option value="video">Video file</option>
-      <option value="youtube">YouTube / YouTube 360 URL</option>
-      <option value="url">Direct URL</option>
-    </select>
-  </div>
-  <div id="mediaUploadWrap" class="fg full" style="margin-bottom:16px">
-    <label>Upload Photo or Video</label>
-    <div class="upload-zone" id="dropZone">
-      <input type="file" id="fFile" accept="image/*,video/*" onchange="handleFile(this)"/>
-      <div class="upload-ico">📷</div>
-      <div class="upload-txt">Tap to upload 360° photo or video</div>
-      <div class="upload-sub">JPEG, PNG, MP4, MOV · Max 50MB · Supports 360° photos</div>
+      <div class="fg" style="margin-bottom:16px">
+        <label>Media Type</label>
+        <select id="fMediaType" onchange="toggleMediaInput()">
+          <option value="image">Photo (360° image)</option>
+          <option value="video">Video file</option>
+          <option value="youtube">YouTube / YouTube 360 URL</option>
+          <option value="url">Direct URL</option>
+        </select>
+      </div>
+      <div id="mediaUploadWrap" class="fg full" style="margin-bottom:16px">
+        <label>Upload Photo or Video</label>
+        <div class="upload-zone" id="dropZone">
+          <input type="file" id="fFile" accept="image/*,video/*" onchange="handleFile(this)"/>
+          <div class="upload-ico">📷</div>
+          <div class="upload-txt">Tap to upload 360° photo or video</div>
+          <div class="upload-sub">JPEG, PNG, MP4, MOV · Max 50MB · Supports 360° photos</div>
+        </div>
+        <img id="imgPreview" class="upload-preview" style="display:none" alt="preview"/>
+        <video id="vidPreview" class="upload-preview" style="display:none" controls></video>
+      </div>
+      <div id="mediaUrlWrap" class="fg full" style="display:none;margin-bottom:16px">
+        <label id="mediaUrlLabel">YouTube Video ID or URL</label>
+        <input type="text" id="fMediaUrl" placeholder="e.g. dQw4w9WgXcQ or full YouTube URL"/>
+        <small style="color:#888;font-size:.75rem;margin-top:4px;display:block">For YouTube 360: paste video ID or full URL</small>
+      </div>
+      <div class="form-actions">
+        <button class="btn-save" onclick="saveLamb()">💾 Save Lamb</button>
+        <button class="btn-cancel" onclick="navTo('lambs')">Cancel</button>
+        <button class="btn-danger" id="deleteBtn" style="display:none" onclick="confirmDeleteLamb()">🗑 Delete</button>
+      </div>
     </div>
-    <img id="imgPreview" class="upload-preview" style="display:none" alt="preview"/>
-    <video id="vidPreview" class="upload-preview" style="display:none" controls></video>
-  </div>
-  <div id="mediaUrlWrap" class="fg full" style="display:none;margin-bottom:16px">
-    <label id="mediaUrlLabel">YouTube Video ID or URL</label>
-    <input type="text" id="fMediaUrl" placeholder="e.g. dQw4w9WgXcQ or full YouTube URL"/>
-    <small style="color:#888;font-size:.75rem;margin-top:4px;display:block">For YouTube 360: paste video ID or full URL</small>
-  </div>
-  <div class="form-actions">
-    <button class="btn-save" onclick="saveLamb()">💾 Save Lamb</button>
-    <button class="btn-cancel" onclick="navTo('lambs')">Cancel</button>
-    <button class="btn-danger" id="deleteBtn" style="display:none" onclick="confirmDeleteLamb()">🗑 Delete</button>
-  </div>
-</div>
-```
-
   </div>
 
   <!-- GALLERY -->
-
   <div class="view" id="view-gallery">
     <div class="sh"><h2>Photo Gallery</h2></div>
     <p style="font-size:.88rem;color:#666;margin-bottom:24px;line-height:1.7">Upload photos and videos from your farm. These appear on the customer website gallery. Supports 360° photos from your camera.</p>
@@ -300,14 +292,17 @@ textarea{resize:vertical;min-height:70px}
   </div>
 
   <!-- RESERVATIONS -->
-
   <div class="view" id="view-reservations">
-    <div class="sh"><h2>All Reservations</h2><button class="tb-btn ghost" onclick="clearReservations()" style="font-size:.78rem;color:var(--red);border-color:#e0c0c0">Clear All</button></div>
+    <div class="sh"><h2>All Reservations</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="tb-btn ghost" onclick="clearPending()" style="font-size:.78rem;color:var(--gold);border-color:rgba(200,146,42,.4)">🗑 Clear Pending</button>
+        <button class="tb-btn ghost" onclick="clearReservations()" style="font-size:.78rem;color:var(--red);border-color:#e0c0c0">Clear All</button>
+      </div>
+    </div>
     <div id="resList"><div class="loading"><div class="spinner"></div>Loading...</div></div>
   </div>
 
   <!-- SETTINGS -->
-
   <div class="view" id="view-settings">
     <div class="sh"><h2>Settings</h2></div>
     <div class="form-card">
@@ -664,11 +659,21 @@ async function renderReservations(){
     const res=await sb('reservations','GET',null,'?select=*&order=created_at.desc')||[];
     document.getElementById('resCount').textContent=res.length;
     if(!res.length){el.innerHTML='<div class="empty"><div class="empty-ico">📋</div><p>No reservations yet.</p></div>';return;}
-    el.innerHTML=res.map(r=>`
+    el.innerHTML=res.map(r=>{
+      const isPending = r.status === 'pending_payment';
+      const expires = isPending ? new Date(r.created_at).getTime() + 5*60*1000 : 0;
+      const remaining = isPending ? Math.max(0, expires - Date.now()) : 0;
+      const mins = Math.floor(remaining / 60000);
+      const secs = Math.floor((remaining % 60000) / 1000);
+      const countdownHtml = isPending ? `<div class="admin-countdown" data-expires="${expires}" style="display:inline-block;margin-left:8px;font-size:.72rem;color:#e4b85a;font-weight:600">⏱ ${mins}:${secs.toString().padStart(2,'0')}</div>` : '';
+      return`
       <div class="res-card">
         <div class="res-hdr">
           <div><div class="res-lamb">${r.lamb_name} <span style="font-size:.85rem;color:#888">(${r.lamb_id})</span></div><div class="res-date">${new Date(r.created_at).toLocaleString()}</div></div>
-          <span class="pill-a ${r.status==='paid'?'pill-ok':'pill-rsvd'}" style="font-size:.72rem;padding:4px 12px">${r.status==='paid'?'Paid':'Pending'}</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="pill-a ${r.status==='paid'?'pill-ok':'pill-rsvd'}" style="font-size:.72rem;padding:4px 12px">${r.status==='paid'?'✅ Paid':'⏳ Pending'}</span>
+            ${countdownHtml}
+          </div>
         </div>
         <div class="res-info">
           <div class="ri"><div class="ri-l">Customer</div><div class="ri-v">${r.customer_name}</div></div>
@@ -687,8 +692,38 @@ async function renderReservations(){
           <a href="mailto:${r.email}?subject=Your Lamb Place Reservation — ${r.lamb_name}&body=Assalamu Alaikum ${r.customer_name},%0D%0A%0D%0AThank you for your reservation at The Lamb Place.%0D%0A%0D%0ALamb: ${r.lamb_name} (${r.lamb_id})%0D%0ATotal: $${r.total}%0D%0ABalance Due: $${r.balance_due}%0D%0A%0D%0APlease call us at (717) 449-6072 with any questions.%0D%0A%0D%0AThe Lamb Place%0D%0A(717) 449-6072 · thelambplace@gmail.com" class="r-btn contact">✉️ Email</a>
           <button class="r-btn cancel" onclick="cancelReservation('${r.id}','${r.lamb_id}','${r.customer_name}')">✕ Cancel</button>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
+
+    // Start admin countdown ticker
+    if(res.some(r=>r.status==='pending_payment')){
+      startAdminCountdown();
+    }
   }catch(e){el.innerHTML='<div class="empty"><p>Error loading reservations. Check your connection.</p></div>';}
+}
+
+let adminCountdownInterval = null;
+function startAdminCountdown(){
+  if(adminCountdownInterval) clearInterval(adminCountdownInterval);
+  adminCountdownInterval = setInterval(()=>{
+    const countdowns = document.querySelectorAll('.admin-countdown');
+    let anyExpired = false;
+    countdowns.forEach(el=>{
+      const expires = parseInt(el.dataset.expires);
+      const remaining = Math.max(0, expires - Date.now());
+      if(remaining === 0){
+        anyExpired = true;
+      } else {
+        const mins = Math.floor(remaining / 60000);
+        const secs = Math.floor((remaining % 60000) / 1000);
+        el.textContent = `⏱ ${mins}:${secs.toString().padStart(2,'0')}`;
+      }
+    });
+    if(anyExpired){
+      clearInterval(adminCountdownInterval);
+      renderReservations();
+    }
+  }, 1000);
 }
 
 async function cancelReservation(resId,lambId,name){
@@ -698,6 +733,16 @@ async function cancelReservation(resId,lambId,name){
       await sb('lambs','PATCH',{available:true},`?farm_id=eq.${lambId}`);
       toast('Reservation cancelled');renderReservations();renderDash();
     }catch(e){toast('⚠️ Error cancelling reservation');}
+  });
+}
+
+async function clearPending(){
+  showConfirm('Clear Pending Reservations?','This deletes all unpaid pending reservations. Paid reservations will not be affected.',async()=>{
+    try{
+      await sb('reservations','DELETE',null,'?status=eq.pending_payment');
+      toast('Pending reservations cleared');
+      renderReservations();
+    }catch(e){toast('⚠️ Error clearing pending reservations');}
   });
 }
 
@@ -738,6 +783,5 @@ function importData(input){
 // Init
 renderDash();
 </script>
-
 </body>
 </html>
