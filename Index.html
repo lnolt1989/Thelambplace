@@ -180,7 +180,7 @@ input[readonly]{opacity:.65;cursor:not-allowed}
     <div class="step"><div class="step-n">01</div><div class="step-t">Watch the 360° Video</div><p class="step-d">Every lamb is filmed in full 360° so you can inspect size, health, and temperament from home before deciding.</p></div>
     <div class="step"><div class="step-n">02</div><div class="step-t">Pick Your Lamb</div><p class="step-d">Browse by weight, breed, or price. Each listing shows exact weight in lbs and confirms Udhiyah eligibility.</p></div>
     <div class="step"><div class="step-n">03</div><div class="step-t">25% Deposit or Pay in Full</div><p class="step-d">A 25% deposit locks your lamb. Or pay in full and owe nothing on Eid day.</p></div>
-    <div class="step"><div class="step-n">04</div><div class="step-t">Pick Up on Eid Day</div><p class="step-d">Come to 1233 Mastersonville Rd, Manheim PA. Pay any balance and take home your lamb.</p></div>
+    <div class="step"><div class="step-n">04</div><div class="step-t">Pick Up on Eid Day</div><p class="step-d">Come to 1233 Mastersonville Rd, Manheim PA on Day 1 or Day 2 of Eid. Pay any balance, perform your own Qurbani slaughter on site, or take your lamb home.</p></div>
   </div>
 </section>
 
@@ -468,14 +468,14 @@ async function loadLambs(silent=false){
     pendingLambIds = new Set((pendingData || []).map(r => r.lamb_id));
     pendingTimestamps = {};
     (pendingData || []).forEach(r => { pendingTimestamps[r.lamb_id] = r.created_at; });
-    renderGrid(currentFilter);
+    renderGrid('all');
     if(!silent) renderGallery();
   }catch(e){
     if(!silent) document.getElementById('grid').innerHTML='<div style="grid-column:1/-1;text-align:center;padding:60px;color:#aaa"><p>Unable to load lambs. Please call (717) 449-6072 to reserve.</p></div>';
   }
 }
 
-function sizeOf(w){return w<=69?'sm':w<=100?'md':'lg'}
+function sizeOf(w){w=Number(w);return w<=69?'sm':w<=100?'md':'lg'}
 
 function renderGrid(filter){
   currentFilter=filter||'all';
